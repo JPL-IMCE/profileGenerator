@@ -2,7 +2,7 @@
  *
  * License Terms
  *
- * Copyright (c) 2014-2016, California Institute of Technology ("Caltech").
+ * Copyright (c) 2016, California Institute of Technology ("Caltech").
  * U.S. Government sponsorship acknowledged.
  *
  * All rights reserved.
@@ -39,8 +39,8 @@
 package gov.nasa.jpl.imce.profileGenerator.transformation;
 
 public class Configuration {
-	public static String inputFile = "test/project-bundle.json";
-	public static String outputFile = "output.mdzip";
-	public static String template = "res/18.0sp5/profile-template.mdzip";
+	public static String inputFile = "dynamicScripts/gov.nasa.jpl.imce.profileGenerator/test/project-bundle.json";
+	public static String outputFile = "dynamicScripts/gov.nasa.jpl.imce.profileGenerator/output.mdzip";
+	public static String template = "dynamicScripts/gov.nasa.jpl.imce.profileGenerator/res/18.0sp5/profile-template.mdzip";
 	public static Boolean silent = false;
 }

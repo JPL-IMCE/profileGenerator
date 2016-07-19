@@ -2,7 +2,7 @@
  *
  * License Terms
  *
- * Copyright (c) 2014-2016, California Institute of Technology ("Caltech").
+ * Copyright (c) 2016, California Institute of Technology ("Caltech").
  * U.S. Government sponsorship acknowledged.
  *
  * All rights reserved.
@@ -48,7 +48,7 @@ import com.nomagic.runtime.ApplicationExitedException;
 import com.nomagic.uml2.ext.magicdraw.auxiliaryconstructs.mdmodels.Model;
 
 import gov.nasa.jpl.imce.profileGenerator.transformation.Configuration;
-import main.scala.gov.nasa.jpl.imce.profileGenerator.util.ProjectUsageIntegrityUtilities;
+import gov.nasa.jpl.imce.profileGenerator.util.ProjectUsageIntegrityUtilities;
 
 /**
  * @author sherzig
@@ -94,6 +94,10 @@ public class MDUtils {
 			e.printStackTrace();
 			System.out.println(e.toString());
 		}
+	}
+
+	public static Project getActiveProject() {
+		return Application.getInstance().getProjectsManager().getActiveProject();
 	}
 
 	/**

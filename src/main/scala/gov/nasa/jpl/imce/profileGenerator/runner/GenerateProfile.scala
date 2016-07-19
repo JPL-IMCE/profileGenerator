@@ -36,41 +36,50 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package gov.nasa.jpl.imce.profileGenerator.util;
-
-import com.nomagic.ci.persistence.IAttachedProject;
-import com.nomagic.magicdraw.core.Application;
-import com.nomagic.magicdraw.core.project.ProjectDescriptor;
-import gov.nasa.jpl.imce.profileGenerator.util.ProjectUsageIntegrityUtilities;
+package gov.nasa.jpl.imce.profileGenerator.runner
 
 /**
- * Created by sherzig on 6/16/16.
- */
-public class PUICUtils {
+  * Created by sherzig on 7/18/16.
+  */
+import java.awt.event.ActionEvent
+import java.io.{File, FileOutputStream}
+import java.nio.file.{Files, Paths}
 
-    protected static IAttachedProject puicModuleDescriptor = null;
+import com.nomagic.magicdraw.core.Project
+import com.nomagic.magicdraw.core.Application
+import gov.nasa.jpl.dynamicScripts.DynamicScriptsTypes.MainToolbarMenuAction
+import gov.nasa.jpl.dynamicScripts.magicdraw.validation.MagicDrawValidationDataResults
+import gov.nasa.jpl.imce.profileGenerator.io.{BundleDigestReader, JSONBundleDigestReader, MDUMLProfileWriter}
+import gov.nasa.jpl.imce.profileGenerator.model.bundle.BundleDigest
+import gov.nasa.jpl.imce.profileGenerator.model.profile.Package
+import gov.nasa.jpl.imce.profileGenerator.transformation.{Bundle2ProfileMappings, Configuration}
 
-    /**
-     * Mount the PUIC profile.
-     *
-     * Note that this function is not in ProjectUsageIntegrityUtilities.scala,
-     * since String is different in Scala and Java - the compiler complained
-     * when trying to use this interchangeably.
-     */
-    public static void mountPUICProfile() {
-        puicModuleDescriptor = MDUMLModelUtils.mountProfile("profiles/SSCAEProjectUsageIntegrityProfile.mdzip");
-    }
+import scala.{Option}
+import scala.util.Try
 
-    public static void unmountPUICProfile() {
-        MDUMLModelUtils.unmountProfile(puicModuleDescriptor);
+object GenerateProfile {
 
-        //puicModuleDescriptor = null;
-    }
+  def generateProfile
+  ( p: Project, ev: ActionEvent, script: MainToolbarMenuAction )
+  : Try[Option[MagicDrawValidationDataResults]]
+  = {
+    // Dialog
+    Files.copy(Paths.get(Configuration.template), new FileOutputStream(new File(Configuration.outputFile)))
 
-    public static void repairProject() {
-        ProjectUsageIntegrityUtilities puic = new ProjectUsageIntegrityUtilities(
-                Application.getInstance().getProjectsManager().getActiveProject());
-        puic.runSSCAEValidationAndRepairs();
-    }
+    val bundleReader: BundleDigestReader = new JSONBundleDigestReader
+    bundleReader.openBundle(Configuration.inputFile)
+    //JSONBundleDigestReader bundleReader = new JSONBundleDigestReader();
+    //bundleReader.openBundle("test/project-bundle.json");
+    val bundle: BundleDigest = bundleReader.readBundleModel
+
+    val mappings: Bundle2ProfileMappings = new Bundle2ProfileMappings
+
+    val profilePackage: Package = mappings.bundleToProfile(bundle)
+
+    val mdUMLProfileWriter: MDUMLProfileWriter = new MDUMLProfileWriter
+    mdUMLProfileWriter.writeModel(profilePackage)
+
+    null
+  }
 
 }

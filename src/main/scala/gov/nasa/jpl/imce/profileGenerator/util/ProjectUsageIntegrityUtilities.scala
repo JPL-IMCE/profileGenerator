@@ -2,7 +2,7 @@
  *
  * License Terms
  *
- * Copyright (c) 2014-2016, California Institute of Technology ("Caltech").
+ * Copyright (c) 2016, California Institute of Technology ("Caltech").
  * U.S. Government sponsorship acknowledged.
  *
  * All rights reserved.
@@ -36,7 +36,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package main.scala.gov.nasa.jpl.imce.profileGenerator.util
+package gov.nasa.jpl.imce.profileGenerator.util
 
 import gov.nasa.jpl.magicdraw.projectUsageIntegrity.ProjectUsageIntegrityHelper
 import gov.nasa.jpl.magicdraw.projectUsageIntegrity.ProjectUsageIntegrityPlugin

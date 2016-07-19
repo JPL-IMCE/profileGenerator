@@ -2,7 +2,7 @@
  *
  * License Terms
  *
- * Copyright (c) 2014-2016, California Institute of Technology ("Caltech").
+ * Copyright (c) 2016, California Institute of Technology ("Caltech").
  * U.S. Government sponsorship acknowledged.
  *
  * All rights reserved.
@@ -39,18 +39,13 @@
 package gov.nasa.jpl.imce.profileGenerator.util;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
+import java.util.*;
 
+import com.nomagic.ci.persistence.IAttachedProject;
+import com.nomagic.ci.persistence.decomposition.ProjectAttachmentConfiguration;
 import com.nomagic.magicdraw.core.Application;
 import com.nomagic.magicdraw.core.ProjectUtilities;
+import com.nomagic.magicdraw.core.modules.ModulesService;
 import com.nomagic.magicdraw.core.project.ProjectDescriptor;
 import com.nomagic.magicdraw.core.project.ProjectDescriptorsFactory;
 import com.nomagic.magicdraw.uml.ClassTypes;
@@ -76,6 +71,7 @@ import com.nomagic.uml2.ext.magicdraw.mdprofiles.Extension;
 import com.nomagic.uml2.ext.magicdraw.mdprofiles.ExtensionEnd;
 import com.nomagic.uml2.ext.magicdraw.mdprofiles.Profile;
 import com.nomagic.uml2.ext.magicdraw.mdprofiles.Stereotype;
+import org.eclipse.emf.common.util.URI;
 
 /**
  * @author sherzig
@@ -154,14 +150,13 @@ public class MDUMLModelUtils extends MDModelUtils {
 
 		return s;
 	}
-	
+
 	/**
 	 *
 	 * @param name
-	 * @param isAbstract
 	 * @param owner
-	 * @return
-	 */
+     * @return
+     */
 	public static Enumeration createEnumeration(String name, Element owner) {
 		System.out.println("[CREATE::Enumeration] " + name + " (owner: " + owner.toString() + ")");
 
@@ -172,14 +167,13 @@ public class MDUMLModelUtils extends MDModelUtils {
 
 		return e;
 	}
-	
+
 	/**
 	 *
 	 * @param name
-	 * @param isAbstract
 	 * @param owner
-	 * @return
-	 */
+     * @return
+     */
 	public static EnumerationLiteral createEnumerationLiteral(String name, Enumeration owner) {
 		System.out.println("[CREATE::EnumerationLiteral] " + name + " (owner: " + owner.toString() + ")");
 
@@ -190,14 +184,14 @@ public class MDUMLModelUtils extends MDModelUtils {
 
 		return l;
 	}
-	
+
 	/**
 	 *
 	 * @param name
-	 * @param isAbstract
+	 * @param type
 	 * @param owner
-	 * @return
-	 */
+     * @return
+     */
 	public static Property createProperty(String name, Type type, Element owner) {
 		if (type != null)
 			System.out.println("[CREATE::Property] " + name + " (type: " + type.toString() + "; owner: " + owner.toString() + ")");
@@ -282,7 +276,7 @@ public class MDUMLModelUtils extends MDModelUtils {
 	 * Note that a similar function used to be in the MagicDraw 18.0 API. However,
 	 * this function is deprecated and no longer available from 18.2.
 	 *
-	 * @param general
+	 * @param element
 	 * @return
 	 */
 	public static Collection<Classifier> getAllGenerals(Classifier element) {
@@ -489,17 +483,17 @@ public class MDUMLModelUtils extends MDModelUtils {
 
 		// Export collection of packages as module
 		try {
+			// Also mark project usage relationship as shared (otherwise PUIC will complain)
+			Collection<IAttachedProject> attachedProjects = ProjectUtilities.getAllAttachedProjects(Application.getInstance().getProjectsManager().getActiveProject());
+
+			for (IAttachedProject attachedProject : attachedProjects)
+				ModulesService.setReSharedOnTask(Application.getInstance().getProjectsManager().getActiveProject().getPrimaryProject(), attachedProject, true);
+
 			Application.getInstance().getProjectsManager().exportModule(
 					getActiveProject(),
 					Arrays.asList(expPackage),
 					"project-bundle",
 					projectDescriptor);
-
-			// Also mark project usage relationship as shared (otherwise PUIC will complain)
-			//Collection<IAttachedProject> attachedProjects = ProjectUtilities.getAllAttachedProjects(Application.getInstance().getProjectsManager().getActiveProject());
-
-			//for (IAttachedProject attachedProject : attachedProjects)
-				//ModulesService.setReSharedOnTask(Application.getInstance().getProjectsManager().getActiveProject().getPrimaryProject(), attachedProject, true);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -510,7 +504,7 @@ public class MDUMLModelUtils extends MDModelUtils {
 	 *
 	 * @param filename
      */
-	public static ProjectDescriptor mountProfile(String filename) {
+	public static IAttachedProject mountProfile(String filename) {
 		File file = new File(filename);
 
 		// TODO Nicer error handling...
@@ -521,29 +515,42 @@ public class MDUMLModelUtils extends MDModelUtils {
 
 		ProjectDescriptor projectDescriptor =
 				ProjectDescriptorsFactory.createProjectDescriptor(file.toURI());
+		URI uri = ProjectUtilities.getEMFURI(projectDescriptor.getURI());
+		ProjectAttachmentConfiguration cfg = ProjectUtilities.createDefaultProjectAttachmentConfiguration(uri);
+
+		IAttachedProject module = null;
 
 		// Mount profile
 		try {
-			Application.getInstance().getProjectsManager().useModule(
-					getActiveProject(),
-					projectDescriptor);
+			// Returns a boolean for success
+			// Look at exporter: batchExportOTIDocumentSets2OMFONtologies
+			//Application.getInstance().getProjectsManager().useModule(
+			//		getActiveProject(),
+			//		projectDescriptor);
+
+			module = ModulesService.attachModuleOnTask(MDUtils.getActiveProject().getPrimaryProject(), cfg);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
-		return projectDescriptor;
+		return module;
 	}
 
 	/**
 	 *
 	 */
-	public static void unmountProfile(ProjectDescriptor projectDescriptor) {
+	public static void unmountProfile(IAttachedProject module) {
 		// Mount profile
 		try {
-			Application.getInstance().getProjectsManager().unloadModule(
-					getActiveProject(),
-					projectDescriptor);
+			// removeModule -> ModulesService (magicdraw.core.modules)
+			//Application.getInstance().getProjectsManager().unloadModule(
+			//		getActiveProject(),
+			//		projectDescriptor);
+			Set<IAttachedProject> modules = new HashSet<IAttachedProject>();
+			modules.add(module);
+
+			ModulesService.removeModulesOnTask(modules, null);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

@@ -2,7 +2,7 @@
  *
  * License Terms
  *
- * Copyright (c) 2014-2016, California Institute of Technology ("Caltech").
+ * Copyright (c) 2016, California Institute of Technology ("Caltech").
  * U.S. Government sponsorship acknowledged.
  *
  * All rights reserved.
@@ -440,15 +440,16 @@ public class MDUMLProfileWriter {
 	 */
 	private void prepare() {
 		// Probably out of class
-		if (Configuration.silent) {
-			String args[] = {};
-			MDUtils.launchMagicDraw(args);
+		if (Application.getInstance() == null) {
+			if (Configuration.silent) {
+				String args[] = {};
+				MDUtils.launchMagicDraw(args);
+			} else {
+				String args[] = {"-verbose", "DEVELOPER"};
+				MDUtils.launchMagicDraw(args);
+			}
 		}
-		else {
-			String args[] = {"-verbose", "DEVELOPER"};
-			MDUtils.launchMagicDraw(args);
-		}
-		MDUtils.loadProject("output.mdzip");
+		MDUtils.loadProject(Configuration.outputFile);
 
 		SessionManager.getInstance().createSession("Profile creation");
 		
@@ -465,7 +466,11 @@ public class MDUMLProfileWriter {
 		SessionManager.getInstance().closeSession();
 
 		String exportedModuleFilename =
+				"dynamicScripts/gov.nasa.jpl.imce.profileGenerator/" +
 				((com.nomagic.uml2.ext.magicdraw.mdprofiles.Profile) _profile).getName() + ".mdzip";
+
+		// Mount PUIC profile
+		PUICUtils.mountPUICProfile();
 
 		// Invoke PUIC to repair project
 		PUICUtils.repairProject();
@@ -474,7 +479,7 @@ public class MDUMLProfileWriter {
 				exportedModuleFilename);
 
 		// Probably out of class
-		MDUtils.saveProject();
+		//MDUtils.saveProject();
 
 		// Load project
 		MDUtils.loadProject(exportedModuleFilename);

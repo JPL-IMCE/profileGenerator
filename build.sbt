@@ -131,9 +131,9 @@ lazy val zipInstall = TaskKey[File]("zip-install", "Zip the resources")
 lazy val core = Project("gov-nasa-jpl-imce-profileGenerator", file("."))
   .enablePlugins(IMCEGitPlugin)
   .enablePlugins(IMCEReleasePlugin)
-  .settings(IMCEReleasePlugin.libraryReleaseProcessSettings)
-  .settings(IMCEPlugin.strictScalacFatalWarningsSettings)
-  //.settings(IMCEReleasePlugin.packageReleaseProcessSettings)
+  .settings(dynamicScriptsResourceSettings("gov.nasa.jpl.imce.profileGenerator"))
+  //.settings(IMCEPlugin.strictScalacFatalWarningsSettings)
+  .settings(IMCEReleasePlugin.packageReleaseProcessSettings)
   .settings(addArtifact(Artifact("imce_md18_0_sp5_profiles_libraries_resource", "zip", "zip"), artifactZipFile).settings: _*)
   .dependsOnSourceProjectOrLibraryArtifacts(
     "gov-nasa-jpl-imce-profileGenerator-model-bundle",
@@ -162,10 +162,10 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator", file("."))
     "gov.nasa.jpl.imce.magicdraw.plugins.cae_md18_0_sp5_puic",
     Seq(
       //      //  extra("artifact.kind" -> "generic.library")
-      "gov.nasa.jpl.imce.magicdraw.plugins" %% "cae_md18_0_sp5_puic"
+      "gov.nasa.jpl.imce.magicdraw.plugins" % "cae_md18_0_sp5_puic"
         % Versions_projectUsageIntegrityChecker.version %
         "compile" withSources() withJavadoc() artifacts
-        Artifact("cae_md18_0_sp5_puic_resource", "zip", "zip", Some("resource"), Seq(), None, Map())
+        Artifact("cae_md18_0_sp5_puic", "zip", "zip", Some("resource"), Seq(), None, Map())
     )
   )
   .dependsOnSourceProjectOrLibraryArtifacts(
@@ -199,6 +199,13 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator", file("."))
         "artifact.kind" -> "generic.library")
     },
 
+    mappings in (Compile, packageSrc) ++= {
+      import Path.{flat, relativeTo}
+      val base = (sourceManaged in Compile).value
+      val srcs = (managedSources in Compile).value
+      srcs x (relativeTo(base) | flat)
+    },
+
     // disable using the Scala version in output paths and artifacts
     crossPaths := false,
 
@@ -209,11 +216,15 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator", file("."))
     addArtifact(Artifact("imce_md18_0_sp5_profiles_libraries_resource", "zip", "zip", Some("resource"), Seq(), None, Map()),
       artifactZipFile),
 
+    sources in doc in Compile := List(),
+
     publish <<= publish dependsOn zipInstall,
     PgpKeys.publishSigned <<= PgpKeys.publishSigned dependsOn zipInstall,
 
     publishLocal <<= publishLocal dependsOn zipInstall,
     PgpKeys.publishLocalSigned <<= PgpKeys.publishLocalSigned dependsOn zipInstall,
+
+    libraryDependencies += "org.jgrapht" % "jgrapht-ext" % "0.9.0",
 
     // TODO Needs modification:
     //   1. Currently, output expected in products / imce.profiles_libraries directory
@@ -230,6 +241,8 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator", file("."))
 
           val root = base / "target" / "imce_md18_0_sp5_profiles_libraries"
           s.log.info(s"\n*** top: $root")
+          s.log.info(s"\n*** zip: ${zip}")
+          s.log.info(s"\n*** zip: ${zip.getCanonicalFile} (canonical)")
 
           // This is likely where the profiles are stored that are produced by the profile generator
           // Looks like this expects: modelLibraries/... and profiles/... to be populated already
@@ -323,7 +336,7 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator", file("."))
             enc="UTF-8")
 
           val fileMappings = (root.*** --- root) pair relativeTo(root)
-          ZipHelper.zipNIO(fileMappings, zip)
+          ZipHelper.zipNIO(fileMappings, zip.getCanonicalFile)
 
           s.log.info(s"\n*** Created the zip: $zip")
           zip
@@ -339,7 +352,7 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator", file("."))
       baseDirectory.value / "resources",
 
     scalaSource in Test :=
-      baseDirectory.value / "test",
+      baseDirectory.value / "src" / "test" / "scala",
 
     resourceDirectory in Test :=
       baseDirectory.value / "resources",
@@ -442,3 +455,48 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator", file("."))
     IMCEKeys.pomRepositoryPathRegex := """\<repositoryPath\>\s*([^\"]*)\s*\<\/repositoryPath\>""".r
 
   )
+
+def dynamicScriptsResourceSettings(projectName: String): Seq[Setting[_]] = {
+
+  import com.typesafe.sbt.packager.universal.UniversalPlugin.autoImport._
+
+  def addIfExists(f: File, name: String): Seq[(File, String)] =
+    if (!f.exists) Seq()
+    else Seq((f, name))
+
+  val QUALIFIED_NAME = "^[a-zA-Z][\\w_]*(\\.[a-zA-Z][\\w_]*)*$".r
+
+  Seq(
+    // the '*-resource.zip' archive will start from: 'dynamicScripts'
+    com.typesafe.sbt.packager.Keys.topLevelDirectory in Universal := None,
+
+    // name the '*-resource.zip' in the same way as other artifacts
+    com.typesafe.sbt.packager.Keys.packageName in Universal :=
+      normalizedName.value + "_" + scalaBinaryVersion.value + "-" + version.value + "-resource",
+
+    // contents of the '*-resource.zip' to be produced by 'universal:packageBin'
+    mappings in Universal <++= (
+      baseDirectory,
+      packageBin in Compile,
+      packageSrc in Compile,
+      packageDoc in Compile,
+      packageBin in Test,
+      packageSrc in Test,
+      packageDoc in Test) map {
+      (dir, bin, src, doc, binT, srcT, docT) =>
+        (dir ** "*.md").pair(rebase(dir, projectName)) ++
+          (dir / "resources" ***).pair(rebase(dir, projectName)) ++
+          addIfExists(bin, projectName + "/lib/" + bin.name) ++
+          addIfExists(binT, projectName + "/lib/" + binT.name) ++
+          addIfExists(src, projectName + "/lib.sources/" + src.name) ++
+          addIfExists(srcT, projectName + "/lib.sources/" + srcT.name) ++
+          addIfExists(doc, projectName + "/lib.javadoc/" + doc.name) ++
+          addIfExists(docT, projectName + "/lib.javadoc/" + docT.name)
+    },
+
+    artifacts <+= (name in Universal) { n => Artifact(n, "zip", "zip", Some("resource"), Seq(), None, Map()) },
+    packagedArtifacts <+= (packageBin in Universal, name in Universal) map { (p, n) =>
+      Artifact(n, "zip", "zip", Some("resource"), Seq(), None, Map()) -> p
+    }
+  )
+}

@@ -1,0 +1,16 @@
+# Configure all dynamic script projects to include the '.classpath'
+# Without it, the dependencies must be transitively complete.
+# With it, the dependencies can be simplied to direct dependencies only.
+
+toolbarMenuScripts(
+	name='Profile Generator'
+	scripts {
+		MainToolbarMenuAction(
+			toolbarMenuPath: { 'Profile Generator' }
+			name: 'Generate Profile ...'
+			project: gov.nasa.jpl.imce.profileGenerator
+			dependencies: { org.omg.oti.uml.magicdraw.adapter, gov.nasa.jpl.imce.profileGenerator.model.bundle, gov.nasa.jpl.imce.profileGenerator.model.profile }
+            access: r/w
+			class: gov.nasa.jpl.imce.profileGenerator.runner.GenerateProfile
+			method: generateProfile )
+ 	})
