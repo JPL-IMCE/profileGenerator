@@ -122,7 +122,7 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator-model-profile", file
   .enablePlugins(IMCEReleasePlugin)
   .settings(dynamicScriptsResourceSettings(Some("gov.nasa.jpl.imce.profileGenerator.model.profile")))
   .settings(IMCEPlugin.strictScalacFatalWarningsSettings)
-  .settings(docSettings(diagrams=true))
+  //.settings(docSettings(diagrams=true))
   .settings(IMCEReleasePlugin.packageReleaseProcessSettings)
   .settings(
     IMCEKeys.licenseYearOrRange := "2014-2016",
