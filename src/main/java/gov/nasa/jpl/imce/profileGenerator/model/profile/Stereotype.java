@@ -109,6 +109,21 @@ public class Stereotype extends NamedElement {
 	 * @return the metaclass
 	 */
 	public MetaClass getMetaclass() {
+		// Search in generalization hierarchy if metaclass not defined directly
+		if (_metaclass == null) {
+			if (this.getGeneralization().size() > 0) {
+				// Return the first metaclass we find in the generalizaiton tree (depth first)
+				// FIXME A little dangerous - should work, but emphasis is on 'should'
+				for (Generalization g : this.getGeneralization()) {
+					if (g.getGeneral() instanceof Stereotype
+						&& ((Stereotype) g.getGeneral()).getMetaclass() != null)
+						return ((Stereotype) g.getGeneral()).getMetaclass();
+				}
+			}
+			else
+				return _metaclass;		// I.e., null
+		}
+
 		return _metaclass;
 	}
 

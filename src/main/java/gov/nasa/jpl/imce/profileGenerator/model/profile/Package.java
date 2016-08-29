@@ -50,7 +50,7 @@ public class Package extends NamedElement {
 	/** Reference to stereotypes contained in profile. */
 	private ArrayList<Package> _ownedPackages = new ArrayList<Package>();
 	
-	/** */
+	/** Reference to package owning this package. */
 	private Package _owningPackage = null;
 	
 	/** Reference to stereotypes contained in profile. */
@@ -59,9 +59,18 @@ public class Package extends NamedElement {
 	/** Reference to data types contained in package. */
 	private ArrayList<DataType> _dataTypes = new ArrayList<DataType>();
 
+	/** Contained constraint definitions. */
+	private ArrayList<Constraint> _constraints = new ArrayList<Constraint>();
+
+	/** Contained MD customizations. */
+	private ArrayList<Customization> _customizations = new ArrayList<Customization>();
+
+	/** Whether or not to share package - this is only the case for to-be-exported packages. */
+	private boolean _sharePackage = false;
+
 	/**
 	 * 
-	 * @param owner
+	 * @param name
 	 */
 	public Package(String name) {
 		super(name);
@@ -117,7 +126,7 @@ public class Package extends NamedElement {
 
 	/**
 	 * 
-	 * @param _stereotypes
+	 * @param stereotypes
 	 */
 	public void setStereotypes(ArrayList<Stereotype> stereotypes) {
 		this._stereotypes = stereotypes;
@@ -136,5 +145,53 @@ public class Package extends NamedElement {
 	public void setDataTypes(ArrayList<DataType> dataTypes) {
 		this._dataTypes = dataTypes;
 	}
-	
+
+	/**
+	 *
+	 * @return
+     */
+	public boolean isSharePackage() {
+		return _sharePackage;
+	}
+
+	/**
+	 *
+	 * @param sharePackage
+     */
+	public void setSharePackage(boolean sharePackage) {
+		this._sharePackage = sharePackage;
+	}
+
+	/**
+	 *
+	 * @return
+     */
+	public ArrayList<Constraint> getConstraints() {
+		return _constraints;
+	}
+
+	/**
+	 *
+	 * @param constraints
+     */
+	public void setConstraints(ArrayList<Constraint> constraints) {
+		this._constraints = constraints;
+	}
+
+	/**
+	 *
+	 * @return
+     */
+	public ArrayList<Customization> getCustomizations() {
+		return _customizations;
+	}
+
+	/**
+	 *
+	 * @param customizations
+     */
+	public void setCustomizations(ArrayList<Customization> customizations) {
+		this._customizations = customizations;
+	}
+
 }

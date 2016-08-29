@@ -53,6 +53,9 @@ public abstract class NamedElement extends Element {
 	
 	/** */
 	private ArrayList<Stereotype> _appliedStereotypes = new ArrayList<Stereotype>();
+
+	/** */
+	private ArrayList<Constraint> _appliedConstraints = new ArrayList<Constraint>();
 	
 	/** */
 	private String _documentation = "";
@@ -80,6 +83,22 @@ public abstract class NamedElement extends Element {
 	 */
 	public void setGeneralization(ArrayList<Generalization> generalization) {
 		_generalization = generalization;
+	}
+
+	/**
+	 * Return all generalizations (inherited and owned).
+	 *
+	 * @return
+     */
+	public ArrayList<Generalization> getAllGeneralizations() {
+		ArrayList<Generalization> allGenerals = new ArrayList<Generalization>();
+
+		allGenerals.addAll(this.getGeneralization());
+
+		for (Generalization g : getGeneralization())
+			allGenerals.addAll(g.getGeneral().getAllGeneralizations());
+
+		return allGenerals;
 	}
 
 	/**
@@ -134,6 +153,22 @@ public abstract class NamedElement extends Element {
 	 */
 	public void setAppliedStereotypes(ArrayList<Stereotype> appliedStereotypes) {
 		this._appliedStereotypes = appliedStereotypes;
+	}
+
+	/**
+	 *
+	 * @return
+     */
+	public ArrayList<Constraint> getAppliedConstraints() {
+		return _appliedConstraints;
+	}
+
+	/**
+	 *
+	 * @param appliedConstraints
+     */
+	public void setAppliedConstraints(ArrayList<Constraint> appliedConstraints) {
+		this._appliedConstraints = appliedConstraints;
 	}
 
 	/**
