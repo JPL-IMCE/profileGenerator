@@ -402,7 +402,7 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator", file("."))
           }
 
           // Also copy IMCE libraries & profiles (this bootstraps some manually created dependencies)
-          val imceLibsProfiles: File = base / "res" / "imce_md18_0_sp5_profiles_libraries_resource_2.11-1.11.zip"
+          val imceLibsProfiles: File = base / "resources" / "imce_md18_0_sp5_profiles_libraries_resource_2.11-1.11.zip"
           IO.unzip(imceLibsProfiles, mdInstallDir)
           s.log.info(
             s"=> installed IMCE libraries and profiles into $mdInstallDir")

@@ -51,21 +51,10 @@ import com.nomagic.magicdraw.core.project.ProjectDescriptorsFactory;
 import com.nomagic.magicdraw.uml.ClassTypes;
 import com.nomagic.uml2.ext.jmi.helpers.ModelHelper;
 import com.nomagic.uml2.ext.jmi.helpers.StereotypesHelper;
+import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.*;
 import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Class;
-import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Classifier;
-import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Comment;
-import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Constraint;
-import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Element;
 import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Enumeration;
-import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.EnumerationLiteral;
-import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Generalization;
-import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.InstanceSpecification;
-import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.NamedElement;
 import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Package;
-import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Property;
-import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Type;
-import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.VisibilityKind;
-import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.VisibilityKindEnum;
 import com.nomagic.uml2.ext.magicdraw.components.mdbasiccomponents.Component;
 import com.nomagic.uml2.ext.magicdraw.mdprofiles.Extension;
 import com.nomagic.uml2.ext.magicdraw.mdprofiles.ExtensionEnd;
@@ -78,6 +67,40 @@ import org.eclipse.emf.common.util.URI;
  *
  */
 public class MDUMLModelUtils extends MDModelUtils {
+
+	/**
+	 *
+	 * @param name
+	 * @param owner
+     * @return
+     */
+	public static Class createClass(String name, Element owner) {
+		System.out.println("[CREATE::Class] " + name + " (owner: " + owner.toString() + ")");
+
+		Class c = getElementsFactory().createClassInstance();
+		c.setName(name);
+
+		addToModel(c, owner);
+
+		return c;
+	}
+
+	/**
+	 *
+	 * @param name
+	 * @param owner
+     * @return
+     */
+	public static Constraint createConstraint(String name, Element owner) {
+		System.out.println("[CREATE::Constraint] " + name + " (owner: " + owner.toString() + ")");
+
+		Constraint c = getElementsFactory().createConstraintInstance();
+		c.setName(name);
+
+		addToModel(c, owner);
+
+		return c;
+	}
 
 	/**
 	 *
@@ -188,6 +211,23 @@ public class MDUMLModelUtils extends MDModelUtils {
 	/**
 	 *
 	 * @param name
+	 * @param owner
+	 * @return
+	 */
+	public static Component createComponent(String name, Element owner) {
+		System.out.println("[CREATE::Component] " + name + " (owner: " + owner.toString() + ")");
+
+		Component c = getElementsFactory().createComponentInstance();
+		c.setName(name);
+
+		addToModel(c, owner);
+
+		return c;
+	}
+
+	/**
+	 *
+	 * @param name
 	 * @param type
 	 * @param owner
      * @return
@@ -252,22 +292,23 @@ public class MDUMLModelUtils extends MDModelUtils {
 
 		return StereotypesHelper.getExtension(stereotype, metaClass);
 	}
-	
+
 	/**
+	 * Creates an opaque expression element.
 	 *
 	 * @param name
 	 * @param owner
-	 * @return
-	 */
-	public static Constraint createConstraint(String name, Element owner) {
-		System.out.println("[CREATE::Constraint] " + name + " (owner: " + owner.toString() + ")");
+     * @return
+     */
+	public static OpaqueExpression createOpaqueExpression(String name, String language, String body, Element owner) {
+		System.out.println("[CREATE::OpaqueExpression] " + name + " (owner: " + owner.toString() + ")");
 
-		Constraint c = getElementsFactory().createConstraintInstance();
-		c.setName(name);
+		OpaqueExpression o = getElementsFactory().createOpaqueExpressionInstance();
+		o.setName(name);
+		o.getBody().add(body);
+		o.getLanguage().add(language);
 
-		addToModel(c, owner);
-
-		return c;
+		return o;
 	}
 
 	/**
@@ -445,11 +486,36 @@ public class MDUMLModelUtils extends MDModelUtils {
 	 * @param element
 	 * @param stereotypeName
 	 */
-	public static void applyStereotypeByName(Element element, String stereotypeName) {
+	public static Stereotype applyStereotypeByName(Element element, String stereotypeName) {
 		// FIXME Method is deprecated - should use method with profile
 		Stereotype stereotype = StereotypesHelper.getStereotype(getActiveProject(), stereotypeName);
 
 		StereotypesHelper.addStereotype(element, stereotype);
+
+		return stereotype;
+	}
+
+	/**
+	 * Set the constraint to apply to a particular element.
+	 *
+	 * @param element
+	 * @param c
+     * @return
+     */
+	public static void applyConstraint(Element element, Constraint c) {
+		c.getConstrainedElement().add(element);
+	}
+
+	/**
+	 *
+	 * @param element
+	 * @param stereotype
+	 * @param propertyName
+	 * @param propertyValue
+     */
+	public static void setStereotypePropertyValue(Element element, Stereotype stereotype, String propertyName, Object propertyValue) {
+		StereotypesHelper.setStereotypePropertyValue(element, stereotype,
+				propertyName, propertyValue);
 	}
 
 	/**
@@ -492,7 +558,7 @@ public class MDUMLModelUtils extends MDModelUtils {
 			Application.getInstance().getProjectsManager().exportModule(
 					getActiveProject(),
 					Arrays.asList(expPackage),
-					"project-bundle",
+					expPackage.getName(),
 					projectDescriptor);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block

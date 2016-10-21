@@ -217,6 +217,19 @@ public class JSONBundleDigestReader extends BundleDigestReader {
 			
 			// Set documentation
 			op.setDocumentation((String) getDocumentationStringFor(ci.getKey()));
+
+			// Look up source and target
+			NamedElement sourceType = lookupElementByName((String) ci.getValue().get("srctype"));
+			if (sourceType == null)
+				sourceType = new ReferencedElement((String) ci.getValue().get("srctype"));
+
+			NamedElement targetType = lookupElementByName((String) ci.getValue().get("trgtype"));
+			if (targetType == null)
+				targetType = new ReferencedElement((String) ci.getValue().get("trgtype"));
+
+			// Set source and target
+			op.setSrcType((Class) sourceType);
+			op.setTargetType((Class) targetType);
 			
 			if (!_objectStore.contains(op))
 				_objectStore.add(op);

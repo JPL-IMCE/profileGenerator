@@ -48,16 +48,15 @@ import com.nomagic.magicdraw.core.MDCounter;
 import com.nomagic.magicdraw.openapi.uml.SessionManager;
 import com.nomagic.uml2.ext.jmi.helpers.StereotypesHelper;
 import com.nomagic.uml2.ext.magicdraw.auxiliaryconstructs.mdmodels.Model;
-import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Element;
 
-import gov.nasa.jpl.imce.profileGenerator.model.profile.Profile;
-import gov.nasa.jpl.imce.profileGenerator.model.profile.Package;
-import gov.nasa.jpl.imce.profileGenerator.model.profile.Attribute;
+import com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Element;
+import gov.nasa.jpl.imce.profileGenerator.model.profile.*;
+import gov.nasa.jpl.imce.profileGenerator.model.profile.Constraint;
 import gov.nasa.jpl.imce.profileGenerator.model.profile.DataType;
 import gov.nasa.jpl.imce.profileGenerator.model.profile.Enumeration;
 import gov.nasa.jpl.imce.profileGenerator.model.profile.EnumerationLiteral;
 import gov.nasa.jpl.imce.profileGenerator.model.profile.Generalization;
-import gov.nasa.jpl.imce.profileGenerator.model.profile.Stereotype;
+import gov.nasa.jpl.imce.profileGenerator.model.profile.Package;
 import gov.nasa.jpl.imce.profileGenerator.util.MDUMLModelUtils;
 import gov.nasa.jpl.imce.profileGenerator.util.MDUtils;
 import gov.nasa.jpl.imce.profileGenerator.util.MDElementIDGenerator;
@@ -76,6 +75,12 @@ public class MDUMLProfileWriter {
 	/** */
 	private Element _profile = null;
 
+	/** Generated MD customizations package (if relevant). */
+	private Element _validationCustomizationsPackage = null;
+
+	/** Generated OCL validation rules package (if relevant). */
+	private Element _validationOCLPackage = null;
+
 	/** */
 	private HashMap<Object,Element> _mappings = new HashMap<Object,Element>();
 
@@ -85,6 +90,11 @@ public class MDUMLProfileWriter {
 	 * @return
 	 */
 	public Element writeModel(Package profilePackage) {
+		// Best order to avoid running algorithm multiple times is:
+		// - OCL validation package first
+		// - Then stereotypes (refer to OCL constraints)
+		// - Then MD customizations (refer to stereotypes)
+
 		// Initialize
 		prepare();
 
@@ -128,14 +138,47 @@ public class MDUMLProfileWriter {
 			String id = MDElementIDGenerator.constructID((com.nomagic.uml2.ext.magicdraw.classes.mdkernel.PackageableElement) mdPackage);
 			mdPackage.setID(id);
 
+			// Apply any stereotypes that may be defined
+			for (Stereotype s : pkg.getAppliedStereotypes())
+				MDUMLModelUtils.applyStereotypeByName(mdPackage, s.getName());
+
+			// Share, if specified
+			if (pkg.isSharePackage())
+				MDUMLModelUtils.sharePackage((com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Package) mdPackage);
+
+			// Check whether this is the top-level validation or customization package
+			if (pkg instanceof ValidationPackage)
+				this._validationOCLPackage = mdPackage;
+			else if (pkg instanceof CustomizationPackage)
+				this._validationCustomizationsPackage = mdPackage;
+
 			_mappings.put(pkg, mdPackage);
 		}
 
+		// Contained data type definitions
 		for (DataType d : pkg.getDataTypes())
 			writeDataType(d, mdPackage);
-		
+
+		// Contained stereotypes
 		for (Stereotype s : pkg.getStereotypes())
 			writeStereotype(s, mdPackage);
+
+		// Components
+		for (Classifier c : pkg.getClassifiers())
+			if (c instanceof Component)
+				writeComponent((Component) c, mdPackage);
+			else if (c instanceof Block)
+				writeBlock((Block) c, mdPackage);
+
+		// Contained MD customizations
+		for (Customization c : pkg.getCustomizations()) {
+			writeMDCustomizationClass(c, mdPackage);
+		}
+
+		// Contained constraint definitions
+		for (Constraint c : pkg.getConstraints()) {
+			writeValidationOCLConstraint(c, mdPackage);
+		}
 
 		for (Package subPkg : pkg.getOwnedPackages())
 			if (subPkg instanceof Profile)
@@ -175,6 +218,17 @@ public class MDUMLProfileWriter {
 			// Create documentation
 			MDUMLModelUtils.createDocumentationAnnotation(mdStereotype, stereotype.getDocumentation());
 
+			// Add any applied constraints
+			for (Constraint c : stereotype.getAppliedConstraints()) {
+				// Attempt to resolve the constraint
+				Element mdConstraint = resolveElementInTargetModel(c, com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Constraint.class);
+
+				// Apply the constraint to the model
+				MDUMLModelUtils.applyConstraint(
+						mdStereotype,
+						(com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Constraint) mdConstraint);
+			}
+
 			_mappings.put(stereotype, mdStereotype);
 		}
 
@@ -206,6 +260,64 @@ public class MDUMLProfileWriter {
 		}
 
 		return mdDataType;
+	}
+
+	/**
+	 *
+	 * @param owner
+	 * @return
+	 */
+	private Element writeComponent(Component component, Element owner) {
+		Element mdComponent = resolveElementInTargetModel(component, com.nomagic.uml2.ext.magicdraw.components.mdbasiccomponents.Component.class);
+
+		if (mdComponent == null) {
+			mdComponent = MDUMLModelUtils.createComponent(component.getName(), owner);
+
+			// Set element ID
+			String id = MDElementIDGenerator.constructID((com.nomagic.uml2.ext.magicdraw.classes.mdkernel.PackageableElement) mdComponent);
+			mdComponent.setID(id);
+
+			// Properties
+			for(Attribute p : component.getAttributes())
+				writeProperty(p, mdComponent);
+
+			// Apply any stereotypes
+			for (Stereotype s : component.getAppliedStereotypes())
+				MDUMLModelUtils.applyStereotypeByName(mdComponent, s.getName());
+
+			_mappings.put(component, mdComponent);
+		}
+
+		return mdComponent;
+	}
+
+	/**
+	 * FIXME Really is a class...
+	 * @param owner
+	 * @return
+	 */
+	private Element writeBlock(Block block, Element owner) {
+		Element mdBlock = resolveElementInTargetModel(block, com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Class.class);
+
+		if (mdBlock == null) {
+			mdBlock = MDUMLModelUtils.createClass(block.getName(), owner);
+
+			// Set element ID
+			String id = MDElementIDGenerator.constructID((com.nomagic.uml2.ext.magicdraw.classes.mdkernel.PackageableElement) mdBlock);
+			mdBlock.setID(id);
+
+			// Properties
+			for(Attribute p : block.getAttributes())
+				writeProperty(p, mdBlock);
+
+			// Apply any stereotypes
+			for (Stereotype s : block.getAppliedStereotypes())
+				MDUMLModelUtils.applyStereotypeByName(mdBlock, s.getName());
+
+			_mappings.put(block, mdBlock);
+		}
+
+		return mdBlock;
 	}
 	
 	/**
@@ -247,6 +359,10 @@ public class MDUMLProfileWriter {
 		// Set element ID
 		String id = MDElementIDGenerator.constructID((com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Property) mdProperty);
 		mdProperty.setID(id);
+
+		// Apply any stereotypes
+		for (Stereotype s : property.getAppliedStereotypes())
+			MDUMLModelUtils.applyStereotypeByName(mdProperty, s.getName());
 
 		_mappings.put(property, mdProperty);
 
@@ -295,11 +411,10 @@ public class MDUMLProfileWriter {
 			String id = MDElementIDGenerator.constructID((com.nomagic.uml2.ext.magicdraw.mdprofiles.Profile) mdProfile);
 			mdProfile.setID(id);
 
+			// Apply any stereotypes that may be defined
 			// IMCE profile bundles have a special stereotype applied
-			// FIXME Should become part of profile model
-			MDUMLModelUtils.applyStereotypeByName(mdProfile, "owl2-mof2:BundledOntologyProfile");
-			MDUMLModelUtils.applyStereotypeByName(mdProfile, "auxiliaryResource");
-			// --> Change to apply stereotype with a referenced element!!
+			for (Stereotype s : profile.getAppliedStereotypes())
+				MDUMLModelUtils.applyStereotypeByName(mdProfile, s.getName());
 
 			MDUMLModelUtils.sharePackage((com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Package) mdProfile);
 
@@ -312,6 +427,21 @@ public class MDUMLProfileWriter {
 		for (Stereotype s : profile.getStereotypes())
 			writeStereotype(s, mdProfile);
 
+		// Components
+		for (Classifier c : profile.getClassifiers())
+			if (c instanceof Component)
+				writeComponent((Component) c, mdProfile);
+			else if (c instanceof Block)
+				writeBlock((Block) c, mdProfile);
+
+		// Contained MD customizations (should never happen)
+		for (Customization c : profile.getCustomizations())
+			writeMDCustomizationClass(c, mdProfile);
+
+		// Contained constraint definitions (should never happen)
+		for (Constraint c : profile.getConstraints())
+			writeValidationOCLConstraint(c, mdProfile);
+
 		for (Package subPkg : profile.getOwnedPackages())
 			if (subPkg instanceof Profile)
 				writeProfile((Profile) subPkg, mdProfile);
@@ -321,6 +451,118 @@ public class MDUMLProfileWriter {
 		this._profile = mdProfile;
 
 		return mdProfile;
+	}
+
+	/**
+	 *
+	 * @param customization
+	 * @param owner
+     * @return
+     */
+	private Element writeMDCustomizationClass(Customization customization, Element owner) {
+		Element mdCustomization = resolveElementInTargetModel(customization, com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Class.class);
+
+		if (mdCustomization == null) {
+			mdCustomization = MDUMLModelUtils.createClass(customization.getName(), owner);
+
+			// Set element ID
+			String id = MDElementIDGenerator.constructID((com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Class) mdCustomization);
+			mdCustomization.setID(id);
+
+			// Customization stereotype
+			com.nomagic.uml2.ext.magicdraw.mdprofiles.Stereotype stereotype = MDUMLModelUtils.applyStereotypeByName(mdCustomization, "Customization");
+
+			// Get customization target that was previously transformed
+			com.nomagic.uml2.ext.magicdraw.mdprofiles.Stereotype customizationTarget
+					= (com.nomagic.uml2.ext.magicdraw.mdprofiles.Stereotype) resolveElementInTargetModel(
+					customization.getCustomizationTarget(),
+					com.nomagic.uml2.ext.magicdraw.mdprofiles.Stereotype.class);
+
+			// Get source type (here: a stereotype previously transformed)
+			com.nomagic.uml2.ext.magicdraw.mdprofiles.Stereotype typesForSource
+					= (com.nomagic.uml2.ext.magicdraw.mdprofiles.Stereotype) resolveElementInTargetModel(
+					customization.getAllowableSourceType(),
+					com.nomagic.uml2.ext.magicdraw.mdprofiles.Stereotype.class);
+
+			// Get target type (here: a stereotype previously transformed)
+			com.nomagic.uml2.ext.magicdraw.mdprofiles.Stereotype typesForTarget
+					= (com.nomagic.uml2.ext.magicdraw.mdprofiles.Stereotype) resolveElementInTargetModel(
+					customization.getAllowableTargetType(),
+					com.nomagic.uml2.ext.magicdraw.mdprofiles.Stereotype.class);
+
+			// Get supertype
+			com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Classifier superTypes
+					= (com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Classifier) resolveElementInTargetModel(
+					customization.getSuperType(),
+					com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Classifier.class);
+
+			// Only create if successfully resolved all elements
+			if (customizationTarget != null
+					&& typesForSource != null
+					&& typesForTarget != null) {
+				MDUMLModelUtils.setStereotypePropertyValue(mdCustomization, stereotype, "customizationTarget", customizationTarget);
+				MDUMLModelUtils.setStereotypePropertyValue(mdCustomization, stereotype, "typesForSource", typesForSource);
+				MDUMLModelUtils.setStereotypePropertyValue(mdCustomization, stereotype, "typesForTarget", typesForTarget);
+			}
+			else if (customizationTarget != null
+					&& superTypes != null) {
+				MDUMLModelUtils.setStereotypePropertyValue(mdCustomization, stereotype, "customizationTarget", customizationTarget);
+				MDUMLModelUtils.setStereotypePropertyValue(mdCustomization, stereotype, "superTypes", superTypes);
+			}
+			else {
+				System.out.println("[PANIC] Ran into a resolution issue - need to implement this");
+			}
+
+			_mappings.put(customization, mdCustomization);
+		}
+
+		return mdCustomization;
+	}
+
+	/**
+	 *
+	 * @param constraint
+	 * @param owner
+     * @return
+     */
+	private Element writeValidationOCLConstraint(Constraint constraint, Element owner) {
+		Element mdConstraint =
+				resolveElementInTargetModel(constraint, com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Constraint.class);
+
+		if (mdConstraint == null) {
+			mdConstraint = MDUMLModelUtils.createConstraint(constraint.getName(), owner);
+
+			// Set element ID
+			String id =
+					MDElementIDGenerator.constructID((com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Constraint) mdConstraint);
+			mdConstraint.setID(id);
+
+			// Tag constraint as validation rule
+			com.nomagic.uml2.ext.magicdraw.mdprofiles.Stereotype stereotype =
+					MDUMLModelUtils.applyStereotypeByName(mdConstraint, "validationRule");
+
+			// Set error message
+			if (constraint instanceof ValidationRule)
+				MDUMLModelUtils.setStereotypePropertyValue(
+						mdConstraint,
+						stereotype,
+						"errorMessage",
+						((ValidationRule) constraint).getMessage());
+
+			// Create an opaque expression for the OCL constraint
+			com.nomagic.uml2.ext.magicdraw.classes.mdkernel.OpaqueExpression expression =
+					MDUMLModelUtils.createOpaqueExpression(
+						constraint.getName() + "Expression",
+						constraint.getLanguage(),
+						constraint.getBody(),
+						mdConstraint);
+
+			((com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Constraint) mdConstraint).setSpecification(expression);
+
+			_mappings.put(constraint, mdConstraint);
+		}
+
+		return mdConstraint;
 	}
 
 	/**
@@ -400,7 +642,7 @@ public class MDUMLProfileWriter {
 	 * @param pkg
 	 * @return
 	 */
-	private Profile findProfile(Package pkg) {
+	/*private Profile findProfile(Package pkg) {
 		if (pkg instanceof Profile)
 			return (Profile) pkg;
 
@@ -412,7 +654,7 @@ public class MDUMLProfileWriter {
 
 		// No profile found
 		return null;
-	}
+	}*/
 
 	/**
 	 *
@@ -421,7 +663,7 @@ public class MDUMLProfileWriter {
 	 * @return
 	 */
 	// FIXME Dangerous - if more than one package per hierarchy level, this will not return the right package
-	private Element createPackageStructure(Package pkg, Element owner) {
+	/*private Element createPackageStructure(Package pkg, Element owner) {
 		Element newOwner = MDUMLModelUtils.findElementByName(pkg.getName());
 
 		if (newOwner == null)
@@ -433,7 +675,7 @@ public class MDUMLProfileWriter {
 					return createPackageStructure(ownedPackage, newOwner);
 
 		return newOwner;
-	}
+	}*/
 
 	/**
 	 *
@@ -449,6 +691,7 @@ public class MDUMLProfileWriter {
 				MDUtils.launchMagicDraw(args);
 			}
 		}
+
 		MDUtils.loadProject(Configuration.outputFile);
 
 		SessionManager.getInstance().createSession("Profile creation");
@@ -465,45 +708,92 @@ public class MDUMLProfileWriter {
 	private void cleanup() {
 		SessionManager.getInstance().closeSession();
 
+		PUICUtils mainProjectPUICUtils = new PUICUtils();
+
+		// Mount PUIC profile
+		mainProjectPUICUtils.mountPUICProfile();
+
+		// Invoke PUIC to repair project
+		mainProjectPUICUtils.repairProject();
+
+		// Unmount PUIC profile
+		mainProjectPUICUtils.unmountPUICProfile();
+
+		// Export module
 		String exportedModuleFilename =
 				"dynamicScripts/gov.nasa.jpl.imce.profileGenerator/" +
-				((com.nomagic.uml2.ext.magicdraw.mdprofiles.Profile) _profile).getName() + ".mdzip";
+						((com.nomagic.uml2.ext.magicdraw.mdprofiles.Profile) _profile).getName() + ".mdzip";
+		exportAsModuleAndRepair(_profile, exportedModuleFilename);
 
-		// Mount PUIC profile
-		PUICUtils.mountPUICProfile();
+		System.out.println("Exported main profile module...");
 
-		// Invoke PUIC to repair project
-		PUICUtils.repairProject();
+		// Export validation modules as well
+		if (Configuration.generateValidation) {
+			// MD customizations that prevent illegal relationships in the first place
+			if (Configuration.generateValidationCustomizations
+					&& _validationCustomizationsPackage != null) {
+				String exportedMDCustomizationsModuleFilename =
+						"dynamicScripts/gov.nasa.jpl.imce.profileGenerator/" +
+								((com.nomagic.uml2.ext.magicdraw.mdprofiles.Profile) _profile).getName() + "-mdcustomizations.mdzip";
+				exportAsModuleAndRepair(_validationCustomizationsPackage, exportedMDCustomizationsModuleFilename);
 
-		MDUMLModelUtils.exportModule((com.nomagic.uml2.ext.magicdraw.mdprofiles.Profile) _profile,
-				exportedModuleFilename);
+				System.out.println("Exported MD customizations for validation module...");
+			}
 
-		// Probably out of class
-		//MDUtils.saveProject();
+			// OCL validation suite
+			if (Configuration.generateValidationOCLValidationSuite
+					&& _validationOCLPackage != null) {
+				String exportedOCLValidationModuleFilename =
+						"dynamicScripts/gov.nasa.jpl.imce.profileGenerator/" +
+								((com.nomagic.uml2.ext.magicdraw.mdprofiles.Profile) _profile).getName() + "-oclvalidation.mdzip";
+				exportAsModuleAndRepair(_validationOCLPackage, exportedOCLValidationModuleFilename);
 
-		// Load project
-		MDUtils.loadProject(exportedModuleFilename);
+				System.out.println("Exported OCL validation rules module...");
+			}
+		}
 
-		// Mount PUIC profile
-		PUICUtils.mountPUICProfile();
-
-		// Invoke PUIC to repair project
-		PUICUtils.repairProject();
-
-		// Probably out of class
-		MDUtils.saveProject();
-
-		// Unmount profile
-		PUICUtils.unmountPUICProfile();
-
-		// Save project
-		MDUtils.saveProject();
+		// Close output template project
+		MDUtils.closeActiveProject();
 
 		System.out.println("!!!! DONE !!!!");
 
 		if (Configuration.silent) {
 			MDUtils.shutdownMagicDraw();
 		}
+	}
+
+	/**
+	 *
+	 * @param pckg
+	 * @param filename
+     */
+	private void exportAsModuleAndRepair(Element pckg, String filename) {
+		PUICUtils validationModulePUICUtils = new PUICUtils();
+
+		// Export module
+		MDUMLModelUtils.exportModule((com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Package) pckg,
+				filename);
+
+		// Load project
+		MDUtils.loadProject(filename);
+
+		// Mount PUIC profile
+		validationModulePUICUtils.mountPUICProfile();
+
+		// Invoke PUIC to repair project
+		validationModulePUICUtils.repairProject();
+
+		// Probably out of class
+		MDUtils.saveProject();
+
+		// Unmount profile
+		validationModulePUICUtils.unmountPUICProfile();
+
+		// Save project
+		MDUtils.saveProject();
+
+		// Close project
+		MDUtils.closeActiveProject();
 	}
 
 	/**

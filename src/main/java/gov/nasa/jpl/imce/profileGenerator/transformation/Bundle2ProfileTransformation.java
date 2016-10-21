@@ -91,6 +91,14 @@ public class Bundle2ProfileTransformation {
 		        else if (argument.equals("--silent")) {
 		            Configuration.silent = true;
 		        }
+				else if (argument.equals("--libraryMode")) {
+					Configuration.generateCompanionAspects = true;
+				}
+				else if (argument.equals("--generateValidationSuite")) {
+					Configuration.generateValidation = true;
+					Configuration.generateValidationCustomizations = true;
+					Configuration.generateValidationOCLValidationSuite = true;
+				}
 	        }
 			Files.copy(Paths.get(Configuration.template), new FileOutputStream(new File(Configuration.outputFile)));
 			

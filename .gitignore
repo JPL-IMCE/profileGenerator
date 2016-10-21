@@ -7,3 +7,8 @@ links.json
 project/project
 project/target
 target
+**/.DS_Store
+**/*.json
+**/*.yaml
+**/digests
+resources/digests/

@@ -38,23 +38,18 @@
  */
 package gov.nasa.jpl.imce.profileGenerator.transformation;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.SynchronousQueue;
 
-import gov.nasa.jpl.imce.profileGenerator.model.profile.Attribute;
+import gov.nasa.jpl.imce.profileGenerator.model.bundle.*;
+import gov.nasa.jpl.imce.profileGenerator.model.profile.*;
 import gov.nasa.jpl.imce.profileGenerator.model.profile.DataType;
-import gov.nasa.jpl.imce.profileGenerator.model.profile.Element;
 import gov.nasa.jpl.imce.profileGenerator.model.profile.Enumeration;
-import gov.nasa.jpl.imce.profileGenerator.model.profile.EnumerationLiteral;
 import gov.nasa.jpl.imce.profileGenerator.model.profile.Generalization;
-import gov.nasa.jpl.imce.profileGenerator.model.profile.MetaClass;
 import gov.nasa.jpl.imce.profileGenerator.model.profile.NamedElement;
 import gov.nasa.jpl.imce.profileGenerator.model.profile.Package;
-import gov.nasa.jpl.imce.profileGenerator.model.profile.Profile;
 import gov.nasa.jpl.imce.profileGenerator.model.profile.ReferencedElement;
-import gov.nasa.jpl.imce.profileGenerator.model.profile.Stereotype;
+import gov.nasa.jpl.imce.profileGenerator.util.MDUMLModelUtils;
 
 /**
  * Mappings.
@@ -76,7 +71,7 @@ public class Bundle2ProfileMappings {
 	 */
 	public Package bundleToProfile(
 			gov.nasa.jpl.imce.profileGenerator.model.bundle.BundleDigest bundle) {
-		// Initial package structure
+		// Initial package structure: parsed from bundle IRI
 		String bundleIRI = bundle.getBundleIRI();
 		//   Remove protocol
 		bundleIRI = bundleIRI.substring(bundleIRI.indexOf("://") + 3);
@@ -107,26 +102,67 @@ public class Bundle2ProfileMappings {
 			
 			_targetModelElements.add(owner);
 		}
-		
-		// Last element is actual profile package
+
+		// MD customizations & OCL validation suite
+		Package mdCustomizationPackage = null;
+		Package oclValidationSuite = null;
+
+		// To avoid having to implement resolution tricks, the following order is imposed:
+		// - First transform the OCL validation suite (just constraint definitions)
+		// - Then the profile (apply constraints)
+		// - Finally, the MD customizations (refer to stereotypes from the profile)
+		if (Configuration.generateValidation) {
+			// OCL Validation queries
+			if (Configuration.generateValidationOCLValidationSuite) {
+				oclValidationSuite = new ValidationPackage(profilePackage + "-validation", owner);
+				oclValidationSuite.setSharePackage(true);		// Share package, since exported as module
+				oclValidationSuite.getAppliedStereotypes().add(new Stereotype("validationSuite", false, null));
+				owner.getOwnedPackages().add(oclValidationSuite);
+
+				_targetModelElements.add(oclValidationSuite);
+			}
+		}
+
+		// Now the actual profile package
 		Profile p = new Profile(profilePackage, owner);
 		owner.getOwnedPackages().add(p);
+
+		// Add IMCE stereotypes (create dummy stereotype for existing one)
+		p.getAppliedStereotypes().add(new Stereotype("owl2-mof2:BundledOntologyProfile", false, null));
+		p.getAppliedStereotypes().add(new Stereotype("auxiliaryResource", false, null));
 		
 		_targetModelElements.add(p);
+
+		// Finally, the MD customizations, if configured to do so
+		if (Configuration.generateValidation) {
+			if (Configuration.generateValidationCustomizations) {
+				// MD Customizations (to disallow some relationships to be modeled)
+				if (Configuration.generateValidationCustomizations) {
+					mdCustomizationPackage = new CustomizationPackage(profilePackage + "-customizations", owner);
+					mdCustomizationPackage.setSharePackage(true);
+					owner.getOwnedPackages().add(mdCustomizationPackage);
+
+					_targetModelElements.add(mdCustomizationPackage);
+				}
+			}
+		}
 		
 		// Map data types
 		for (gov.nasa.jpl.imce.profileGenerator.model.bundle.DataType d : bundle.getDataTypes()) {
 			dataTypeToDataType(d, p);
 		}
-		
+
+		// Store a list of the created stereotypes for later processing
+		ArrayList<Stereotype> createdStereotypes = new ArrayList<>();
+
 		// Map classes
 		for (gov.nasa.jpl.imce.profileGenerator.model.bundle.Class c : bundle.getClasses()) {
-			classToStereotype(c, p);
+			createdStereotypes.add(classToStereotype(c, p));
 		}
 		
 		// Map object properties
 		for (gov.nasa.jpl.imce.profileGenerator.model.bundle.ObjectProperty o : bundle.getObjectProperties()) {
-			objectPropertyToStereotype(o, p);
+			Stereotype stereotype = objectPropertyToStereotype(o, p);
 		}
 		
 		// Map data type properties
@@ -152,13 +188,59 @@ public class Bundle2ProfileMappings {
 					specific.getGeneralization().add(generalizationToGeneralization(g));
 			}
 		}
+
+		// Validation rules require the taxonomy to exist - especially the metaclasses, such that the correct
+		// validation rules can be created --> create this at the very end
+		// Map object properties
+		for (gov.nasa.jpl.imce.profileGenerator.model.bundle.ObjectProperty o : bundle.getObjectProperties()) {
+			NamedElement resolvedObjProperty = ((NamedElement) resolveTargetModelElement(o));
+
+			if (resolvedObjProperty instanceof Stereotype) {
+				Stereotype stereotype = (Stereotype) resolvedObjProperty;
+				// Domain & range validation rules & MD customization
+				if (stereotype != null
+						&& Configuration.generateValidation) {
+					if (Configuration.generateValidationCustomizations) {
+						objectPropertyToValidationCustomization(o, stereotype, mdCustomizationPackage);
+					}
+
+					if (Configuration.generateValidationOCLValidationSuite) {
+						Constraint rule = objectPropertyToValidationRule(o, stereotype, oclValidationSuite);
+
+						// Apply validation rule / constraint to stereotype
+						if (rule != null)
+							stereotype.getAppliedConstraints().add(rule);
+					}
+				}
+			}
+		}
+
+		// Similarly, any "library" blocks require information about the meta-classes, which is derived from
+		// the class taxonomy
+		// Note: this is currently experimental
+		if (Configuration.generateCompanionAspects) {
+			for (Stereotype s : createdStereotypes) {
+				String metaClassName = determineMetaclassName(s);
+
+				// TODO This is a terrible way of checking whether something is a classifier - should be changed some time
+				// in the future, or externalized.
+				if (metaClassName != null
+						&& (metaClassName.equals("Classifier")
+						|| metaClassName.equals("Class")
+						|| metaClassName.equals("Component")
+						|| metaClassName.equals("AssociationClass")))
+					createCompanionAspect(s, p);
+			}
+		}
 		
 		return root;
 	}
 	
 	/**
-	 * 
+	 * Maps a class to a stereotype.
+	 *
 	 * @param clazz
+	 * @param targetModelOwner
 	 * @return
 	 */
 	public Stereotype classToStereotype(
@@ -190,10 +272,167 @@ public class Bundle2ProfileMappings {
 		
 		return s;
 	}
+
+	/**
+	 * Create a companion aspect for a stereotype.
+	 *
+	 * Note that for all cases where the meta-class is a kind of Classifier,
+	 * a companion stereotype inheriting from base:IdentifiedElement, and a
+	 * Component stereotyped with this new stereotype will be created. This
+	 * component then owns all properties associated with the class. To
+	 * simplify modeling, an additional customization is created, which
+	 * automatically adds a specialization relationship between any application
+	 * of the resulting stereotype and the newly created Component.
+	 *
+	 * For instance, for vandv:VerificationItem the following is created:
+	 * - Stereotype "vandv:VerificationItem"
+	 * - Stereotype "vandv:VerificationItemAspect" as specialization of
+	 * 		base:IdentifiedElement
+	 * - Component "vandv:VerificationItemComponent" stereotyped with
+	 * 		vandv:VerificationItemAspect
+	 * - Customization "vandv:VerificationItemCustomization" which automatically
+	 * 		creates a specialization between any UML element that has stereotype
+	 * 		vandv:VerificationItem applied and vandv:VerificationItemComponent
+	 *
+	 * @param stereotype
+	 * @param targetModelOwner
+	 * @return
+	 */
+	private void createCompanionAspect(
+			Stereotype stereotype, Element targetModelOwner) {
+		// Determine owning package name (e.g., for "mission:Mission" this becomes "mission")
+		String aspectsPackageName = stereotype.getName().split(":")[0] + "::aspects";
+
+		// Try to get package (note: elements are unique by qualified name here - so setting name as qualified name (since no owner))
+		Package aspectsPackage = (Package) resolveTargetModelElementByQualifiedName(((Package) targetModelOwner).getQualifiedName() + "::" + aspectsPackageName);
+
+		if (aspectsPackage == null) {
+			// Determine owning package name (e.g., for "mission:Mission" this becomes "mission")
+			String packageName = stereotype.getName().split(":")[0];
+
+			// Try to get package (note: elements are unique by qualified name here - so setting name as qualified name (since no owner))
+			Package owningPackage = (Package) resolveTargetModelElementByQualifiedName(((Package) targetModelOwner).getQualifiedName() + "::" + packageName);
+
+			if (owningPackage == null) {
+				owningPackage = new Package(packageName, (Package) targetModelOwner);
+				((Package) targetModelOwner).getOwnedPackages().add(owningPackage);
+
+				_targetModelElements.add(owningPackage);
+			}
+
+			aspectsPackage = new Package("aspects", owningPackage);
+			owningPackage.getOwnedPackages().add(aspectsPackage);
+
+			_targetModelElements.add(aspectsPackage);
+		}
+
+		// We need to create:
+		//	- A stereotype that inherits from base:IdentifiedElement, with meta-class component
+		//	- A component that has this stereotype applied
+		//	- A MD customization that automatically creates a generalization
+		Stereotype companionAspectStereotype = createCompanionAspectStereotype(stereotype, aspectsPackage);
+
+		String metaClassName = determineMetaclassName(stereotype);
+
+		Classifier aspect;
+
+		if (metaClassName.equals("Class"))
+			aspect = createCompanionAspectBlock(stereotype, companionAspectStereotype, aspectsPackage);
+		else
+			aspect = createCompanionAspectComponent(stereotype, companionAspectStereotype, aspectsPackage);
+
+		createCompanionAspectCustomization(stereotype, aspect, aspectsPackage);
+	}
+
+	/**
+	 *
+	 * @param stereotype
+	 * @param targetModelOwner
+	 * @return
+	 */
+	private Stereotype createCompanionAspectStereotype(
+			Stereotype stereotype, Element targetModelOwner) {
+		// Now add the stereotype with the appropriate owner in the target model
+		Stereotype s = new Stereotype(stereotype.getName() + "Aspect", false, targetModelOwner);
+		Generalization g = new Generalization(new ReferencedElement("base:IdentifiedElement"), s);
+		s.getGeneralization().add(g);
+
+		_targetModelElements.add(s);
+		_targetModelElements.add(g);
+
+		return s;
+	}
+
+	/**
+	 *
+	 * @param stereotype
+	 * @param aspectStereotype
+	 * @param targetModelOwner
+	 * @return
+	 */
+	private Component createCompanionAspectComponent(
+			Stereotype stereotype, Stereotype aspectStereotype, Element targetModelOwner) {
+		// Now add the stereotype with the appropriate owner in the target model
+		Component c = new Component(stereotype.getName() + "Template", true, targetModelOwner);
+		c.getAppliedStereotypes().add(aspectStereotype);
+
+		// Remove all of the stereotype properties and add the properties as value properties to the new component instead
+		c.getAttributes().addAll(stereotype.getAttributes());
+		stereotype.getAttributes().clear();
+
+		_targetModelElements.add(c);
+
+		return c;
+	}
+
+	/**
+	 *
+	 * @param stereotype
+	 * @param aspectStereotype
+	 * @param targetModelOwner
+	 * @return
+	 */
+	private Block createCompanionAspectBlock(
+			Stereotype stereotype, Stereotype aspectStereotype, Element targetModelOwner) {
+		// Now add the stereotype with the appropriate owner in the target model
+		Block b = new Block(stereotype.getName() + "Template", true, targetModelOwner);
+		b.getAppliedStereotypes().add(aspectStereotype);
+
+		// Remove all of the stereotype properties and add the properties as value properties to the new component instead
+		b.getAttributes().addAll(stereotype.getAttributes());
+		stereotype.getAttributes().clear();
+
+		_targetModelElements.add(b);
+
+		return b;
+	}
+
+	/**
+	 *
+	 * @param stereotype
+	 * @param aspect
+	 * @param targetModelOwner
+	 * @return
+	 */
+	private Customization createCompanionAspectCustomization(
+			Stereotype stereotype, Classifier aspect, Element targetModelOwner) {
+		// Now add the stereotype with the appropriate owner in the target model
+		Customization c = new Customization(stereotype.getName() + "AspectCustomization");
+		c.setCustomizationTarget(stereotype);
+		c.setSuperType(aspect);
+
+		if (targetModelOwner instanceof Package)
+			((Package) targetModelOwner).getCustomizations().add(c);
+		else
+			System.out.println("[PANIC] Unexpected: owner of a customization is not a Package");
+
+		_targetModelElements.add(c);
+
+		return c;
+	}
 	
 	/**
-	 * 
-	 * @param clazz
+	 *
 	 * @return
 	 */
 	public Generalization generalizationToGeneralization(
@@ -217,12 +456,13 @@ public class Bundle2ProfileMappings {
 		
 		return g;
 	}
-	
+
 	/**
-	 * 
+	 *
 	 * @param objectProperty
-	 * @return
-	 */
+	 * @param targetModelOwner
+     * @return
+     */
 	public Stereotype objectPropertyToStereotype(
 			gov.nasa.jpl.imce.profileGenerator.model.bundle.ObjectProperty objectProperty, 
 			Element targetModelOwner) {
@@ -250,6 +490,119 @@ public class Bundle2ProfileMappings {
 		_targetModelElements.add(s);
 		
 		return s;
+	}
+
+	/**
+	 * Adds a customization element to the target profile that specifies the allowable
+	 * source and target types for the elements that can be connected using this particular
+	 * object property.
+	 *
+	 * @param objectProperty
+	 * @param targetModelElement
+	 * @param targetModelOwner
+     * @return
+     */
+	public Customization objectPropertyToValidationCustomization(
+			gov.nasa.jpl.imce.profileGenerator.model.bundle.ObjectProperty objectProperty,
+			Stereotype targetModelElement,
+			Element targetModelOwner) {
+		if (objectProperty == null || targetModelElement == null || targetModelOwner == null)
+			return null;
+
+		// Determine owning package name (e.g., for "mission:Mission" this becomes "mission")
+		String packageName = objectProperty.getName().split(":")[0];
+
+		// Try to get package (note: elements are unique by qualified name here - so setting name as qualified name (since no owner))
+		Package owningPackage = (Package) resolveTargetModelElementByQualifiedName(((Package) targetModelOwner).getQualifiedName() + "::" + packageName);
+
+		if (owningPackage == null) {
+			owningPackage = new Package(packageName, (Package) targetModelOwner);
+			((Package) targetModelOwner).getOwnedPackages().add(owningPackage);
+
+			_targetModelElements.add(owningPackage);
+		}
+
+		// Resolve source and target stereotypes / elements
+		NamedElement sourceType = (NamedElement) resolveTargetModelElement(objectProperty.getSrcType());
+		NamedElement targetType = (NamedElement) resolveTargetModelElement(objectProperty.getTargetType());
+
+		Customization c = new Customization(objectProperty.getName() + " validation customization");
+		c.setAllowableSourceType(sourceType);
+		c.setAllowableTargetType(targetType);
+		c.setCustomizationTarget(targetModelElement);
+
+		owningPackage.getCustomizations().add(c);
+
+		_targetModelElements.add(c);
+
+		return c;
+	}
+
+	/**
+	 * Adds a customization element to the target profile that specifies the allowable
+	 * source and target types for the elements that can be connected using this particular
+	 * object property.
+	 *
+	 * @param objectProperty
+	 * @param targetModelElement
+	 * @param targetModelOwner
+	 * @return
+	 */
+	public Constraint objectPropertyToValidationRule(
+			gov.nasa.jpl.imce.profileGenerator.model.bundle.ObjectProperty objectProperty,
+			Stereotype targetModelElement,
+			Element targetModelOwner) {
+		if (objectProperty == null || targetModelElement == null || targetModelOwner == null)
+			return null;
+
+		// Determine owning package name (e.g., for "mission:Mission" this becomes "mission")
+		String packageName = objectProperty.getName().split(":")[0];
+
+		// Try to get package (note: elements are unique by qualified name here - so setting name as qualified name (since no owner))
+		Package owningPackage = (Package) resolveTargetModelElementByQualifiedName(((Package) targetModelOwner).getQualifiedName() + "::" + packageName);
+
+		if (owningPackage == null) {
+			owningPackage = new Package(packageName, (Package) targetModelOwner);
+			((Package) targetModelOwner).getOwnedPackages().add(owningPackage);
+
+			_targetModelElements.add(owningPackage);
+		}
+
+		// Resolve source and target stereotypes / elements
+		NamedElement sourceType = (NamedElement) resolveTargetModelElement(objectProperty.getSrcType());
+		NamedElement targetType = (NamedElement) resolveTargetModelElement(objectProperty.getTargetType());
+
+		ValidationRule c = new ValidationRule(objectProperty.getName() + " domain and range validation");
+
+		// Body expression depends on meta-class used - a bit of a hack, but necessary since OLC expression depends on
+		// type of meta-class
+		// FIXME for some reason, I can't use the fully qualified name - MD gives up after some packages down. Using just the name for now
+		// TODO If you change over to qualified names, make sure to escape all special characters with encoded<hex code> (e.g., "-" and ".")
+		// TODO For spaces, "_" is fine -> or "encoded20"
+		if (targetModelElement.getMetaclass() != null && targetModelElement.getMetaclass().getName().contains("Dependency"))		// Seems to be the only directed relationship meta-class used
+			c.setBody("self.source->any(true).oclIsKindOf(" + sourceType.getName().replace(":", "encoded3A").replace(" ", "_").replace("-", "encoded2D").replace(".", "encoded2E") + ") and self.target->any(true).oclIsKindOf(" + targetType.getName().replace(":", "encoded3A").replace(" ", "_").replace("-", "encoded2D").replace(".", "encoded2E") + ")");
+		else if (targetModelElement.getMetaclass() != null && targetModelElement.getMetaclass().getName().contains("Association"))
+			c.setBody("");			// TODO Not yet supported
+		else {
+			// If not so obvious, do some deeper checking...
+			for (Generalization g : targetModelElement.getAllGeneralizations()) {
+				if (g.getGeneral().getName().toLowerCase().contains("dependency"))
+					c.setBody("self.source->any(true).oclIsKindOf(" + sourceType.getName().replace(":", "encoded3A").replace(" ", "_").replace("-", "encoded2D").replace(".", "encoded2E") + ") and self.target->any(true).oclIsKindOf(" + targetType.getName().replace(":", "encoded3A").replace(" ", "_").replace("-", "encoded2D").replace(".", "encoded2E") + ")");
+			}
+		}
+
+		c.setMessage("Wrong source and / or target type. Must be a relationship from '" + sourceType.getName() + "' to '" + targetType.getName() + "'.");
+
+		if (!c.getBody().equals("")) {
+			// Add constraint to set of contained constraints
+			owningPackage.getConstraints().add(c);
+
+			_targetModelElements.add(c);
+		}
+		else
+			c = null;
+
+		return c;
 	}
 	
 	/**
@@ -303,15 +656,28 @@ public class Bundle2ProfileMappings {
 			Element targetModelOwner) {
 		// TODO This is duplicated code (from stereotype mapping...) - externalize
 		// Determine owning package name (e.g., for "mission:Mission" this becomes "mission")
-		String packageName = dataType.getName().split(":")[0];
+		String packageName = dataType.getName().split(":")[0] + "::datatypes";
 		
 		// Try to get package (note: elements are unique by qualified name here - so setting name as qualified name (since no owner))
 		Package owningPackage = (Package) resolveTargetModelElementByQualifiedName(((Package) targetModelOwner).getQualifiedName() + "::" + packageName);
 		
 		// If it doesn't exist, create it
 		if (owningPackage == null) {
-			owningPackage = new Package(packageName, (Package) targetModelOwner);
-			((Package) targetModelOwner).getOwnedPackages().add(owningPackage);
+			// FIXME We currently assume that the containing package is already created
+			String profilePckgName = dataType.getName().split(":")[0];
+
+			// Try to get package (note: elements are unique by qualified name here - so setting name as qualified name (since no owner))
+			Package ontoPackage = (Package) resolveTargetModelElementByQualifiedName(((Package) targetModelOwner).getQualifiedName() + "::" + profilePckgName);
+
+			if (ontoPackage == null) {
+				ontoPackage = new Package(profilePckgName, (Package) targetModelOwner);
+				((Package) targetModelOwner).getOwnedPackages().add(ontoPackage);
+
+				_targetModelElements.add(ontoPackage);
+			}
+
+			owningPackage = new Package("datatypes", ontoPackage);
+			ontoPackage.getOwnedPackages().add(owningPackage);
 			
 			_targetModelElements.add(owningPackage);
 		}
@@ -331,8 +697,7 @@ public class Bundle2ProfileMappings {
 	}
 	
 	/**
-	 * 
-	 * @param range
+	 *
 	 * @return
 	 */
 	public NamedElement xsdPrimitiveTypeToUMLPrimitiveType(
@@ -357,8 +722,7 @@ public class Bundle2ProfileMappings {
 	}
 
 	/**
-	 * 
-	 * @param objectToResolve
+	 *
 	 * @return
 	 */
 	private Object resolveTargetModelElementByName(String name) {
@@ -377,8 +741,7 @@ public class Bundle2ProfileMappings {
 	}
 	
 	/**
-	 * 
-	 * @param objectToResolve
+	 *
 	 * @return
 	 */
 	private Object resolveTargetModelElementByQualifiedName(String qualifiedName) {
@@ -447,7 +810,65 @@ public class Bundle2ProfileMappings {
 		
 		return null;
 	}
-	
+
+	/**
+	 * Perform a breadth-first search to identify the most immediate meta-class from the specified element.
+	 *
+	 * @param clazz
+	 * @return
+	 */
+	private String determineMetaclassName(gov.nasa.jpl.imce.profileGenerator.model.bundle.NamedElement clazz) {
+		if (isMetaclass(clazz))
+			return getMetaclassName(clazz);
+
+		// Need to do a breadth-first search to find "lowest" meta-class in tree
+		Queue<gov.nasa.jpl.imce.profileGenerator.model.bundle.Generalization> generalizations = new SynchronousQueue<>();
+		generalizations.addAll(clazz.getGeneralization());
+
+		for (gov.nasa.jpl.imce.profileGenerator.model.bundle.Generalization g : generalizations) {
+			generalizations.addAll(g.getGeneral().getGeneralization());
+
+			String mcName = determineMetaclassName(g.getGeneral());
+
+			if (mcName != null)
+				return mcName;
+		}
+
+		return null;
+	}
+
+	/**
+	 * Perform a breadth-first search to identify the most immediate meta-class from the specified element.
+	 *
+	 * @param stereotype
+	 * @return
+	 */
+	private String determineMetaclassName(Stereotype stereotype) {
+		if (stereotype == null)
+			return null;
+
+		if (stereotype.getMetaclass() != null)
+			return stereotype.getMetaclass().getName();
+
+		// Need to do a breadth-first search to find "lowest" meta-class in tree
+		Queue<Generalization> generalizations = new LinkedList<>();
+		generalizations.addAll(stereotype.getGeneralization());
+
+		while (!generalizations.isEmpty()) {
+			Generalization g = generalizations.remove();
+
+			generalizations.addAll(g.getGeneral().getGeneralization());
+
+			if (g.getGeneral() instanceof Stereotype) {
+				String mcName = determineMetaclassName((Stereotype) g.getGeneral());
+
+				if (mcName != null)
+					return mcName;
+			}
+		}
+
+		return null;
+	}
 	
 	/**
 	 * 
@@ -455,6 +876,12 @@ public class Bundle2ProfileMappings {
 	 * @return
 	 */
 	private boolean isSysMLStereotype(gov.nasa.jpl.imce.profileGenerator.model.bundle.NamedElement clazz) {
+		if (clazz == null)
+			return false;
+
+		if (clazz.getName() == null)
+			return false;
+
 		if (clazz.getName().startsWith("SysML-metamodel:"))
 			return true;
 		

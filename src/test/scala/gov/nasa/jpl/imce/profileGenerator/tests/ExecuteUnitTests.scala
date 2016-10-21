@@ -36,41 +36,51 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package gov.nasa.jpl.imce.profileGenerator.util;
+package test.gov.nasa.jpl.omf.magicdraw.exporter
 
-import com.nomagic.ci.persistence.IAttachedProject;
-import com.nomagic.magicdraw.core.Application;
-import com.nomagic.magicdraw.core.project.ProjectDescriptor;
-import gov.nasa.jpl.imce.profileGenerator.util.ProjectUsageIntegrityUtilities;
+import java.nio.file.Path
 
-/**
- * Created by sherzig on 6/16/16.
- */
-public class PUICUtils {
+import junit.framework.Test
+import gov.nasa.jpl.imce.magicdraw.dynamicscripts.batch.ExecuteDynamicScriptAsMagicDrawUnitTest
+import gov.nasa.jpl.imce.magicdraw.dynamicscripts.batch.json.MagicDrawTestSpec
 
-    protected IAttachedProject puicModuleDescriptor = null;
+object ExecuteUnitTests {
 
-    /**
-     * Mount the PUIC profile.
-     *
-     * Note that this function is not in ProjectUsageIntegrityUtilities.scala,
-     * since String is different in Scala and Java - the compiler complained
-     * when trying to use this interchangeably.
-     */
-    public void mountPUICProfile() {
-        puicModuleDescriptor = MDUMLModelUtils.mountProfile("profiles/SSCAEProjectUsageIntegrityProfile.mdzip");
-    }
-
-    public void unmountPUICProfile() {
-        MDUMLModelUtils.unmountProfile(puicModuleDescriptor);
-
-        //puicModuleDescriptor = null;
-    }
-
-    public void repairProject() {
-        ProjectUsageIntegrityUtilities puic = new ProjectUsageIntegrityUtilities(
-                Application.getInstance().getProjectsManager().getActiveProject());
-        puic.runSSCAEValidationAndRepairs();
-    }
+  /**
+    * Create the test suite for this project's unit tests.
+    *
+    * Note that the magicdraw unit tests created must be
+    * based on unit test classes defined in this project.
+    *
+    * @return Unit test suite.
+    */
+  def suite
+  : Test
+  = ExecuteDynamicScriptAsMagicDrawUnitTest.makeTestSuite(
+    (p: Path, spec: MagicDrawTestSpec) => new ExecuteUnitTests(p, spec)
+  )
 
 }
+
+/**
+  * Project-specific MagicDraw Unit Test.
+  *
+  * In SBT, the compile & test libraries produce different artifacts (*.jar, *-tests.jar)
+  * Compile libraries are public.
+  * Test libraries are private.
+  *
+  * The difference means that SBT does not scan dependencies on other test libraries for unit tests.
+  * SBT only scans the project's test library for unit tests.
+  *
+  * This means that to run SBT unit tests in a given project, it is necessary to define a unit test class.
+  *
+  * This is the idiom to do it in a simple way.
+  *
+  * @param resultsDir test result directory
+  * @param spec MagicDraw unit test specification read from a MagicDrawTestSpec Json file in `resources/CITests`.
+  *             (see `specsRoot` variable in `build.sbt`)
+  */
+class ExecuteUnitTests
+( resultsDir: Path,
+  spec: MagicDrawTestSpec )
+  extends ExecuteDynamicScriptAsMagicDrawUnitTest(resultsDir, spec)

@@ -39,8 +39,32 @@
 package gov.nasa.jpl.imce.profileGenerator.transformation;
 
 public class Configuration {
-	public static String inputFile = "dynamicScripts/gov.nasa.jpl.imce.profileGenerator/test/project-bundle.json";
-	public static String outputFile = "dynamicScripts/gov.nasa.jpl.imce.profileGenerator/output.mdzip";
-	public static String template = "dynamicScripts/gov.nasa.jpl.imce.profileGenerator/res/18.0sp5/profile-template.mdzip";
+
+	/** Default input file. */
+	public static String inputFile =
+			"dynamicScripts/gov.nasa.jpl.imce.profileGenerator/test/project-bundle.json";
+
+	/** Default output file. */
+	public static String outputFile =
+			"dynamicScripts/gov.nasa.jpl.imce.profileGenerator/output.mdzip";
+
+	/** Default template to be used for profiles. */
+	public static String template =
+			"dynamicScripts/gov.nasa.jpl.imce.profileGenerator/resources/18.0sp5/profile-template.mdzip";
+
+	/** Whether to load MagicDraw's GUI or not. */
 	public static Boolean silent = false;
+
+	/** Whether to generate validation procedures (generally). */
+	public static Boolean generateValidation = true;
+
+	/** Whether to generate MD customizations for validation. */
+	public static Boolean generateValidationCustomizations = true;
+
+	/** Whether to generate OCL validation rules. */
+	public static Boolean generateValidationOCLValidationSuite = true;
+
+	/** Setting this to true will cause the profile generator to create companion aspects. */
+	public static Boolean generateCompanionAspects = false;
+
 }

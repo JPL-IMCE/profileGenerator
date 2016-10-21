@@ -59,17 +59,61 @@ import scala.util.Try
 
 object GenerateProfile {
 
+  /**
+    * Default profile generation function - this will generate a single profile as specified
+    * by the Configuration class values.
+    *
+    * @param p
+    * @param ev
+    * @param script
+    * @return
+    */
   def generateProfile
   ( p: Project, ev: ActionEvent, script: MainToolbarMenuAction )
   : Try[Option[MagicDrawValidationDataResults]]
   = {
-    // Dialog
+    produceSingleProfile(new File(Configuration.inputFile))
+  }
+
+  /**
+    * Produce all profiles for all digests found in a particular subdirectory.
+    *
+    * @param p
+    * @param ev
+    * @param script
+    * @return
+    */
+  def generateAllProfiles
+  ( p: Project, ev: ActionEvent, script: MainToolbarMenuAction )
+  : Try[Option[MagicDrawValidationDataResults]]
+  = {
+    // Collect a list of all files in a particular subdirectory
+    def collectFiles(dir : File) : Array[File] = {
+      val these = dir.listFiles
+      these ++ these.filter(_.isDirectory).flatMap(collectFiles)
+    }
+
+    // Filter the list of files in a subdirectory by the extension used by digests (here: json)
+    val digests = collectFiles(new File("resources/digests")).filter(f => f.getAbsoluteFile.toString.endsWith(".json"))
+
+    // Create the various profiles, and package
+    digests.map(d => produceSingleProfile(d))
+
+    null
+  }
+
+  /**
+    * Produce a single profile.
+    *
+    * @param inputFile
+    * @return
+    */
+  def produceSingleProfile(inputFile : File) = {
     Files.copy(Paths.get(Configuration.template), new FileOutputStream(new File(Configuration.outputFile)))
 
     val bundleReader: BundleDigestReader = new JSONBundleDigestReader
-    bundleReader.openBundle(Configuration.inputFile)
-    //JSONBundleDigestReader bundleReader = new JSONBundleDigestReader();
-    //bundleReader.openBundle("test/project-bundle.json");
+    bundleReader.openBundle(inputFile.getAbsolutePath)
+
     val bundle: BundleDigest = bundleReader.readBundleModel
 
     val mappings: Bundle2ProfileMappings = new Bundle2ProfileMappings
