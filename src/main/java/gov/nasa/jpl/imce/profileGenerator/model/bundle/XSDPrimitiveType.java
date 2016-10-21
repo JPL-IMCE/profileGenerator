@@ -66,8 +66,6 @@ public class XSDPrimitiveType extends PrimitiveType {
 			name = name.replace("http://www.w3.org/2001/XMLSchema#", "");
 		
 		switch (name) {
-		case "string":
-			return XSD_STRING;
 		case "int":
 			return XSD_INT;
 		case "integer":
@@ -76,9 +74,12 @@ public class XSDPrimitiveType extends PrimitiveType {
 			return XSD_BOOLEAN;
 		case "date":
 			return XSD_DATE;
+		default:
+		//case "string":
+			return XSD_STRING;
 		}
 		
-		throw new Exception("Unknown or unsupported XSD data type \"xsd:" + name + "\" requested");
+		//throw new Exception("Unknown or unsupported XSD data type \"xsd:" + name + "\" requested");
 	}
 	
 	/**
