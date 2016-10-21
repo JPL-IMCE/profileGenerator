@@ -12,3 +12,4 @@ target
 **/*.yaml
 **/digests
 resources/digests/
+resources/digests/
