@@ -6,6 +6,6 @@ object Versions {
   // 1.0.0 - Initial release
 
   // this project
-  val version = "1.1.0"
+  val version = "1.2.0"
 
 }
