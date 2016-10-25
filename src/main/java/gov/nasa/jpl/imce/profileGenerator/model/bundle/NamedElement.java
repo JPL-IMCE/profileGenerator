@@ -38,6 +38,8 @@
  */
 package gov.nasa.jpl.imce.profileGenerator.model.bundle;
 
+import java.lang.Object;
+import java.lang.String;
 import java.util.ArrayList;
 
 /**

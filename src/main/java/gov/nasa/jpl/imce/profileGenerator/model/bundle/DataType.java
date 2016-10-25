@@ -39,6 +39,7 @@
 package gov.nasa.jpl.imce.profileGenerator.model.bundle;
 
 import java.util.ArrayList;
+import java.lang.String;
 
 /**
  * Represents a data type in the bundle digest. Strictly speaking, the class

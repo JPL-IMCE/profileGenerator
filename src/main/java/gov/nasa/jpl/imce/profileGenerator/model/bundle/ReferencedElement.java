@@ -38,6 +38,8 @@
  */
 package gov.nasa.jpl.imce.profileGenerator.model.bundle;
 
+import java.lang.String;
+
 /**
  * @author sherzig
  *

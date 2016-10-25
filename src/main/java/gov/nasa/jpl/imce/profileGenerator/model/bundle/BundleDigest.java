@@ -41,6 +41,7 @@ package gov.nasa.jpl.imce.profileGenerator.model.bundle;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.lang.String;
 
 /**
  * @author sherzig
