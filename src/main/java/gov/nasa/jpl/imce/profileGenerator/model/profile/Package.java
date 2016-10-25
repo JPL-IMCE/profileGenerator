@@ -65,6 +65,9 @@ public class Package extends NamedElement {
 	/** Contained MD customizations. */
 	private ArrayList<Customization> _customizations = new ArrayList<Customization>();
 
+	/** Reference to data types contained in package. */
+	private ArrayList<Classifier> _classifiers = new ArrayList<>();
+
 	/** Whether or not to share package - this is only the case for to-be-exported packages. */
 	private boolean _sharePackage = false;
 
@@ -145,6 +148,22 @@ public class Package extends NamedElement {
 	public void setDataTypes(ArrayList<DataType> dataTypes) {
 		this._dataTypes = dataTypes;
 	}
+
+
+	/**
+	 * @return the dataTypes
+	 */
+	public ArrayList<Classifier> getClassifiers() {
+		return _classifiers;
+	}
+
+	/**
+	 * @param classifiers the dataTypes to set
+	 */
+	public void setClassifiers(ArrayList<Classifier> classifiers) {
+		this._classifiers = classifiers;
+	}
+
 
 	/**
 	 *

@@ -39,12 +39,18 @@
 package gov.nasa.jpl.imce.profileGenerator.model.profile;
 
 /**
- * Created by sherzig on 8/29/16.
+ * Created by sherzig on 9/26/16.
  */
-public class CustomizationPackage extends Package {
+public class Block extends Classifier {
 
-    public CustomizationPackage(String name, Package owner) {
-        super(name, owner);
+    /**
+     * Default constructor.
+     *
+     * @param name
+     * @param owner
+     */
+    public Block(String name, boolean isAbstract, Element owner) {
+        super(name, isAbstract, owner);
     }
 
 }

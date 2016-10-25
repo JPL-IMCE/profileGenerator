@@ -59,9 +59,6 @@ public class Stereotype extends NamedElement {
 	/** Pointer to meta-class that this stereotype extends. */
 	private MetaClass _metaclass = null;
 	
-	/** List of attributes of this stereotype. */
-	private ArrayList<Attribute> _attributes = new ArrayList<Attribute>();
-	
 	/**
 	 * Default constructor.
 	 * <P>
@@ -132,20 +129,6 @@ public class Stereotype extends NamedElement {
 	 */
 	public void setMetaclass(MetaClass metaclass) {
 		this._metaclass = metaclass;
-	}
-
-	/**
-	 * @return the attributes
-	 */
-	public ArrayList<Attribute> getAttributes() {
-		return _attributes;
-	}
-
-	/**
-	 * @param attributes the attributes to set
-	 */
-	public void setAttributes(ArrayList<Attribute> attributes) {
-		this._attributes = attributes;
 	}
 
 }

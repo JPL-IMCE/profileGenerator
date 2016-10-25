@@ -48,8 +48,8 @@ public class ValidationPackage extends Package {
      *
      * @param name
      */
-    public ValidationPackage(String name) {
-        super(name);
+    public ValidationPackage(String name, Package owner) {
+        super(name, owner);
     }
 
 }

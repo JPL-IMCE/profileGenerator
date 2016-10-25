@@ -39,12 +39,42 @@
 package gov.nasa.jpl.imce.profileGenerator.model.profile;
 
 /**
- * Created by sherzig on 8/29/16.
+ * Created by sherzig on 9/26/16.
  */
-public class CustomizationPackage extends Package {
+public abstract class Classifier extends NamedElement {
 
-    public CustomizationPackage(String name, Package owner) {
-        super(name, owner);
+    /** Marks a component as abstract or non-abstract. */
+    private boolean _isAbstract = false;
+
+    /**
+     * Default constructor.
+     *
+     * @param name
+     * @param owner
+     */
+    public Classifier(String name, boolean isAbstract, Element owner) {
+        super(name);
+        setOwner(owner);
+        setAbstract(isAbstract);
+
+        // Extra logic for packages
+        if (owner instanceof Package) {
+            ((Package) owner).getClassifiers().add(this);
+        }
+    }
+
+    /**
+     * @return the isAbstract
+     */
+    public boolean isAbstract() {
+        return _isAbstract;
+    }
+
+    /**
+     * @param isAbstract the isAbstract to set
+     */
+    public void setAbstract(boolean isAbstract) {
+        this._isAbstract = isAbstract;
     }
 
 }

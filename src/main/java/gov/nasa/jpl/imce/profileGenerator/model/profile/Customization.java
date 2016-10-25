@@ -52,6 +52,9 @@ public class Customization extends NamedElement {
     /** Allowable target(s) - currently only one is supported. */
     private NamedElement _allowableTargetType = null;
 
+    /** Allowable super type - note, MD supports multiple; here, we only consider one. */
+    private NamedElement _superType = null;
+
     /**
      * Default constructor
      *
@@ -84,4 +87,13 @@ public class Customization extends NamedElement {
     public void setAllowableTargetType(NamedElement allowableTargetType) {
         this._allowableTargetType = allowableTargetType;
     }
+
+    public NamedElement getSuperType() {
+        return _superType;
+    }
+
+    public void setSuperType(NamedElement superType) {
+        this._superType = superType;
+    }
+
 }

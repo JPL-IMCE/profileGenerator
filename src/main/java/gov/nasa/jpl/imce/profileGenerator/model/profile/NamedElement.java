@@ -56,6 +56,9 @@ public abstract class NamedElement extends Element {
 
 	/** */
 	private ArrayList<Constraint> _appliedConstraints = new ArrayList<Constraint>();
+
+	/** List of attributes of this stereotype. */
+	private ArrayList<Attribute> _attributes = new ArrayList<Attribute>();
 	
 	/** */
 	private String _documentation = "";
@@ -185,6 +188,20 @@ public abstract class NamedElement extends Element {
 	 */
 	public void setDocumentation(String documentation) {
 		this._documentation = documentation;
+	}
+
+	/**
+	 * @return the attributes
+	 */
+	public ArrayList<Attribute> getAttributes() {
+		return _attributes;
+	}
+
+	/**
+	 * @param attributes the attributes to set
+	 */
+	public void setAttributes(ArrayList<Attribute> attributes) {
+		this._attributes = attributes;
 	}
 
 	/* (non-Javadoc)
