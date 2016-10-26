@@ -7,7 +7,7 @@ set -ev
 
 # Build if there is no tag for the current commit.
 t=$(git name-rev --tags --name-only $(git rev-parse HEAD))
-[ -z "$t" ] && exit 0;
+[ -n "$t" ] && exit 0;
 
 [ ${TRAVIS_SECURE_ENV_VARS} == false ] && exit -1;
 

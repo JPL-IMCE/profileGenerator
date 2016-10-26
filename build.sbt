@@ -26,15 +26,6 @@ lazy val specsRoot = SettingKey[File]("specs-root", "MagicDraw DynamicScripts Te
 
 lazy val runMDTests = taskKey[Unit]("Run MagicDraw DynamicScripts Unit Tests")
 
-/*
- * For now, we can't compile in strict mode because the Scala macros used for generating the JSon adapters
- * results in a compilation warning:
- *
- * Warning:(1, 0) Unused import
- * / *
- * ^
- *
- */
 lazy val core = Project("gov-nasa-jpl-imce-profileGenerator-model-profile", file("."))
   .enablePlugins(IMCEGitPlugin)
   .enablePlugins(IMCEReleasePlugin)
@@ -46,10 +37,6 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator-model-profile", file
     IMCEKeys.organizationInfo := IMCEPlugin.Organizations.oti,
     IMCEKeys.targetJDK := IMCEKeys.jdk18.value,
 
-    organization := "gov.nasa.jpl.imce",
-    organizationHomepage :=
-      Some(url("https://github.jpl.nasa.gov/imce/gov.nasa.jpl.imce.team")),
-
     buildInfoPackage := "gov.nasa.jpl.imce.profileGenerator.model.profile",
     buildInfoKeys ++= Seq[BuildInfoKey](BuildInfoKey.action("buildDateUTC") { buildUTCDate.value }),
 
@@ -59,8 +46,6 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator-model-profile", file
         "build.date.utc" -> buildUTCDate.value,
         "artifact.kind" -> "generic.library")
     },
-
-    git.baseVersion := Versions.version,
 
     scalaSource in Compile :=
       baseDirectory.value / "src",
@@ -124,28 +109,21 @@ def dynamicScriptsResourceSettings(dynamicScriptsProjectName: Option[String] = N
       normalizedName.value + "_" + scalaBinaryVersion.value + "-" + version.value + "-resource",
 
     // contents of the '*-resource.zip' to be produced by 'universal:packageBin'
-    mappings in Universal <++= (
-      baseDirectory,
-      packageBin in Compile,
-      packageSrc in Compile,
-      packageDoc in Compile,
-      packageBin in Test,
-      packageSrc in Test,
-      packageDoc in Test,
-      streams) map {
-      (base, bin, src, doc, binT, srcT, docT, s) =>
-        val file2name =
-          addIfExists(bin, "lib/" + bin.name) ++
-            addIfExists(binT, "lib/" + binT.name) ++
-            addIfExists(src, "lib.sources/" + src.name) ++
-            addIfExists(srcT, "lib.sources/" + srcT.name) ++
-            addIfExists(doc, "lib.javadoc/" + doc.name) ++
-            addIfExists(docT, "lib.javadoc/" + docT.name)
+    mappings in Universal in packageBin ++= {
+      val dir = baseDirectory.value
+      val bin = (packageBin in Compile).value
+      val src = (packageSrc in Compile).value
+      val doc = (packageDoc in Compile).value
+      val binT = (packageBin in Test).value
+      val srcT = (packageSrc in Test).value
+      val docT = (packageDoc in Test).value
 
-        s.log.info(s"file2name entries: ${file2name.size}")
-        s.log.info(file2name.mkString("\n"))
-
-        file2name
+      addIfExists(bin, "lib/" + bin.name) ++
+        addIfExists(binT, "lib/" + binT.name) ++
+        addIfExists(src, "lib.sources/" + src.name) ++
+        addIfExists(srcT, "lib.sources/" + srcT.name) ++
+        addIfExists(doc, "lib.javadoc/" + doc.name) ++
+        addIfExists(docT, "lib.javadoc/" + docT.name)
     },
 
     artifacts <+= (name in Universal) { n => Artifact(n, "zip", "zip", Some("resource"), Seq(), None, Map()) },
