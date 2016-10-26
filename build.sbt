@@ -12,92 +12,10 @@ useGpg := true
 
 fork in run := true
 
-developers := List(
-  Developer(
-    id="sherzig",
-    name="Sebastian J. Herzig",
-    email="sebastian.j.herzig@jpl.nasa.gov",
-    url=url("https://gateway.jpl.nasa.gov/personal/sherzig/default.aspx")),
-  Developer(
-    id="rouquett",
-    name="Nicolas F. Rouquette",
-    email="nicolas.f.rouquette@jpl.nasa.gov",
-    url=url("https://gateway.jpl.nasa.gov/personal/rouquett/default.aspx")))
-
 lazy val mdInstallDirectory = SettingKey[File]("md-install-directory", "MagicDraw Installation Directory")
 
 mdInstallDirectory in Global :=
   baseDirectory.value / "target" / "md.package"
-
-import scala.io.Source
-import scala.util.control.Exception._
-
-def docSettings(diagrams:Boolean): Seq[Setting[_]] =
-  Seq(
-    sources in (Compile,doc) <<= (git.gitUncommittedChanges, sources in (Compile,compile)) map {
-      (uncommitted, compileSources) =>
-        if (uncommitted)
-          Seq.empty
-        else
-          compileSources
-    },
-
-    sources in (Test,doc) <<= (git.gitUncommittedChanges, sources in (Test,compile)) map {
-      (uncommitted, testSources) =>
-        if (uncommitted)
-          Seq.empty
-        else
-          testSources
-    },
-
-    scalacOptions in (Compile,doc) ++=
-      (if (diagrams)
-        Seq("-diagrams", "-diagrams-dot-path", "/usr/bin/dot", "-verbose", "-diagrams-debug")
-      else
-        Seq()
-        ) ++
-        Seq(
-          "-doc-title", name.value,
-          "-doc-root-content", baseDirectory.value + "/rootdoc.txt"
-        ),
-    autoAPIMappings := ! git.gitUncommittedChanges.value
-    //    apiMappings <++=
-    //      ( git.gitUncommittedChanges,
-    //        dependencyClasspath in Compile in doc,
-    //        IMCEKeys.nexusJavadocRepositoryRestAPIURL2RepositoryName,
-    //        IMCEKeys.pomRepositoryPathRegex,
-    //        streams ) map { (uncommitted, deps, repoURL2Name, repoPathRegex, s) =>
-    //        if (uncommitted)
-    //          Map[File, URL]()
-    //        else
-    //          (for {
-    //            jar <- deps
-    //            url <- jar.metadata.get(AttributeKey[ModuleID]("moduleId")).flatMap { moduleID =>
-    //              val urls = for {
-    //                (repoURL, repoName) <- repoURL2Name
-    //                (query, match2publishF) = IMCEPlugin.nexusJavadocPOMResolveQueryURLAndPublishURL(
-    //                  repoURL, repoName, moduleID)
-    //                url <- nonFatalCatch[Option[URL]]
-    //                  .withApply { (_: java.lang.Throwable) => None }
-    //                  .apply({
-    //                    val conn = query.openConnection.asInstanceOf[java.net.HttpURLConnection]
-    //                    conn.setRequestMethod("GET")
-    //                    conn.setDoOutput(true)
-    //                    repoPathRegex
-    //                      .findFirstMatchIn(Source.fromInputStream(conn.getInputStream).getLines.mkString)
-    //                      .map { m =>
-    //                        val javadocURL = match2publishF(m)
-    //                        s.log.info(s"Javadoc for: $moduleID")
-    //                        s.log.info(s"= mapped to: $javadocURL")
-    //                        javadocURL
-    //                      }
-    //                  })
-    //              } yield url
-    //              urls.headOption
-    //            }
-    //          } yield jar.data -> url).toMap
-    //      }
-  )
 
 resolvers := {
   val previous = resolvers.value
@@ -106,6 +24,9 @@ resolvers := {
   else
     previous
 }
+
+resolvers += 
+"Artifactory" at "https://cae-artifactory.jpl.nasa.gov/artifactory/ext-release-local/"
 
 shellPrompt in ThisBuild := { state => Project.extract(state).currentRef.project + "> " }
 
@@ -119,63 +40,41 @@ lazy val artifactZipFile = taskKey[File]("Location of the zip artifact file")
 
 lazy val zipInstall = TaskKey[File]("zip-install", "Zip the resources")
 
-/*
- * For now, we can't compile in strict mode because the Scala macros used for generating the JSon adapters
- * results in a compilation warning:
- *
- * Warning:(1, 0) Unused import
- * / *
- * ^
- *
- */
 lazy val core = Project("gov-nasa-jpl-imce-profileGenerator", file("."))
   .enablePlugins(IMCEGitPlugin)
   .enablePlugins(IMCEReleasePlugin)
   .settings(dynamicScriptsResourceSettings("gov.nasa.jpl.imce.profileGenerator"))
-  //.settings(IMCEPlugin.strictScalacFatalWarningsSettings)
+  .settings(IMCEPlugin.strictScalacFatalWarningsSettings)
   .settings(IMCEReleasePlugin.packageReleaseProcessSettings)
-  .settings(addArtifact(Artifact("imce_md18_0_sp5_profiles_libraries_resource", "zip", "zip"), artifactZipFile).settings: _*)
+  .settings(addArtifact(Artifact("imce_md18_0_sp6_profiles_libraries_resource", "zip", "zip"), artifactZipFile).settings: _*)
   .dependsOnSourceProjectOrLibraryArtifacts(
     "gov-nasa-jpl-imce-profileGenerator-model-bundle",
     "gov.nasa.jpl.imce.profileGenerator.model.bundle",
     Seq(
-      //      //  extra("artifact.kind" -> "generic.library")
-      "gov.nasa.jpl.imce" %% "profileGenerator-model-bundle"
+      "gov.nasa.jpl.imce" %% "gov.nasa.jpl.imce.profileGenerator.model.bundle"
         % Versions_profileGenerator_model_bundle.version %
         "compile" withSources() withJavadoc() artifacts
-        Artifact("profileGenerator-model-bundle", "zip", "zip", Some("resource"), Seq(), None, Map())
+        Artifact( "gov.nasa.jpl.imce.profileGenerator.model.bundle", "zip", "zip", Some("resource"), Seq(), None, Map())
     )
   )
   .dependsOnSourceProjectOrLibraryArtifacts(
     "gov-nasa-jpl-imce-profileGenerator-model-profile",
     "gov.nasa.jpl.imce.profileGenerator.model.profile",
     Seq(
-      //      //  extra("artifact.kind" -> "generic.library")
-      "gov.nasa.jpl.imce" %% "profileGenerator-model-profile"
+      "gov.nasa.jpl.imce" %% "gov.nasa.jpl.imce.profileGenerator.model.profile"
         % Versions_profileGenerator_model_profile.version %
         "compile" withSources() withJavadoc() artifacts
-        Artifact("profileGenerator-model-profile", "zip", "zip", Some("resource"), Seq(), None, Map())
-    )
-  )
-  .dependsOnSourceProjectOrLibraryArtifacts(
-    "gov-nasa-jpl-imce-magicdraw-plugins-cae_md18_0_sp5_puic",
-    "gov.nasa.jpl.imce.magicdraw.plugins.cae_md18_0_sp5_puic",
-    Seq(
-      //      //  extra("artifact.kind" -> "generic.library")
-      "gov.nasa.jpl.imce.magicdraw.plugins" % "cae_md18_0_sp5_puic"
-        % Versions_projectUsageIntegrityChecker.version %
-        "compile" withSources() withJavadoc() artifacts
-        Artifact("cae_md18_0_sp5_puic", "zip", "zip", Some("resource"), Seq(), None, Map())
+        Artifact( "gov.nasa.jpl.imce.profileGenerator.model.profile", "zip", "zip", Some("resource"), Seq(), None, Map())
     )
   )
   .dependsOnSourceProjectOrLibraryArtifacts(
     "oti-uml-magicdraw-adapter",
     "org.omg.oti.uml.magicdraw.adapter",
     Seq(
-      "org.omg.tiwg" %% "oti-uml-magicdraw-adapter"
+      "org.omg.tiwg" %% "org.omg.oti.uml.magicdraw.adapter"
         % Versions_oti_uml_magicdraw_adapter.version % "compile"
         withSources() withJavadoc() artifacts
-        Artifact("oti-uml-magicdraw-adapter", "zip", "zip", Some("resource"), Seq(), None, Map())
+        Artifact("org.omg.oti.uml.magicdraw.adapter", "zip", "zip", Some("resource"), Seq(), None, Map())
     )
   )
   .settings(
@@ -185,7 +84,7 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator", file("."))
     git.baseVersion := Versions.version,
 
     organization := "gov.nasa.jpl.imce.magicdraw.resources",
-    name := "imce_md18_0_sp5_profiles_libraries_resource",
+    name := "imce_md18_0_sp6_profiles_libraries_resource",
     organizationHomepage :=
       Some(url("https://github.jpl.nasa.gov/imce/gov.nasa.jpl.imce.team")),
 
@@ -199,6 +98,8 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator", file("."))
         "artifact.kind" -> "generic.library")
     },
 
+    libraryDependencies += "gov.nasa.jpl.cae.magicdraw.packages" % "cae_md18_0_sp6_mdk" % "2.4.3",
+
     mappings in (Compile, packageSrc) ++= {
       import Path.{flat, relativeTo}
       val base = (sourceManaged in Compile).value
@@ -210,10 +111,10 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator", file("."))
     crossPaths := false,
 
     artifactZipFile := {
-      baseDirectory.value / "target" / s"imce_md18_0_sp5_profiles_libraries-${version.value}-resource.zip"
+      baseDirectory.value / "target" / s"imce_md18_0_sp6_profiles_libraries-${version.value}-resource.zip"
     },
 
-    addArtifact(Artifact("imce_md18_0_sp5_profiles_libraries_resource", "zip", "zip", Some("resource"), Seq(), None, Map()),
+    addArtifact(Artifact("imce_md18_0_sp6_profiles_libraries_resource", "zip", "zip", Some("resource"), Seq(), None, Map()),
       artifactZipFile),
 
     sources in doc in Compile := List(),
@@ -239,7 +140,7 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator", file("."))
 
           import com.typesafe.sbt.packager.universal._
 
-          val root = base / "target" / "imce_md18_0_sp5_profiles_libraries"
+          val root = base / "target" / "imce_md18_0_sp6_profiles_libraries"
           s.log.info(s"\n*** top: $root")
           s.log.info(s"\n*** zip: ${zip}")
           s.log.info(s"\n*** zip: ${zip.getCanonicalFile} (canonical)")
@@ -368,15 +269,8 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator", file("."))
 
     unmanagedClasspath in Compile <++= unmanagedJars in Compile,
 
-    libraryDependencies += "org.yaml" % "snakeyaml" % Versions_snakeyaml.version,
-
-    libraryDependencies +=
-      "gov.nasa.jpl.imce.thirdParty" %% "other-scala-libraries" % Versions_other_scala_libraries.version artifacts
-        Artifact("other-scala-libraries", "zip", "zip", Some("resource"), Seq(), None, Map()),
-
-    libraryDependencies +=
-      "gov.nasa.jpl.imce.magicdraw.plugins" % "cae_md18_0_sp5_puic" % Versions_projectUsageIntegrityChecker.version artifacts
-    Artifact("cae_md18_0_sp5_puic", "zip", "zip", Some("resource"), Seq(), None, Map()),
+    resolvers += Resolver.bintrayRepo("jpl-imce", "gov.nasa.jpl.imce"),
+    resolvers += Resolver.bintrayRepo("tiwg", "org.omg.tiwg"),
 
     extractArchives <<= (baseDirectory, update, streams) map {
       (base, up, s) =>
@@ -402,7 +296,7 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator", file("."))
           }
 
           // Also copy IMCE libraries & profiles (this bootstraps some manually created dependencies)
-          val imceLibsProfiles: File = base / "resources" / "imce_md18_0_sp5_profiles_libraries_resource_2.11-1.11.zip"
+          val imceLibsProfiles: File = base / "resources" / "imce_md18_0_sp6_profiles_libraries_resource_2.11-1.11.zip"
           IO.unzip(imceLibsProfiles, mdInstallDir)
           s.log.info(
             s"=> installed IMCE libraries and profiles into $mdInstallDir")
@@ -445,14 +339,7 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator", file("."))
         mdJars
     },
 
-    compile <<= (compile in Compile) dependsOn extractArchives,
-
-    IMCEKeys.nexusJavadocRepositoryRestAPIURL2RepositoryName := Map(
-      "https://oss.sonatype.org/service/local" -> "releases",
-      "https://cae-nexuspro.jpl.nasa.gov/nexus/service/local" -> "JPL",
-      "https://cae-nexuspro.jpl.nasa.gov/nexus/content/groups/jpl.beta.group" -> "JPL Beta Group",
-      "https://cae-nexuspro.jpl.nasa.gov/nexus/content/groups/jpl.public.group" -> "JPL Public Group"),
-    IMCEKeys.pomRepositoryPathRegex := """\<repositoryPath\>\s*([^\"]*)\s*\<\/repositoryPath\>""".r
+    compile <<= (compile in Compile) dependsOn extractArchives
 
   )
 
