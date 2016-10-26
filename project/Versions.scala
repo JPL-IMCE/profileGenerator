@@ -11,6 +11,6 @@ object Versions {
   // 1.0.0 - Initial release with basic classes
 
   // this project
-  val version = "1.3.0"
+  val version = "1.4.0"
 
 }

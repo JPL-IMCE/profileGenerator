@@ -38,6 +38,8 @@
  */
 package gov.nasa.jpl.imce.profileGenerator.model.profile;
 
+import java.lang.String;
+
 /**
  * Class representing a (UML) constraint. This class is intended to be used for
  * representing OCL well-formedness constraints.
