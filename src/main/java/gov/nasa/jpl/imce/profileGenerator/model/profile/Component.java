@@ -38,6 +38,8 @@
  */
 package gov.nasa.jpl.imce.profileGenerator.model.profile;
 
+import java.lang.String;
+
 /**
  * Created by sherzig on 9/9/16.
  */
