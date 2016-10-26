@@ -10,88 +10,6 @@ import gov.nasa.jpl.imce.sbt.ProjectHelper._
 
 useGpg := true
 
-developers := List(
-  Developer(
-    id="sherzig",
-    name="Sebastian J. Herzig",
-    email="sebastian.j.herzig@jpl.nasa.gov",
-    url=url("https://gateway.jpl.nasa.gov/personal/sherzig/default.aspx")),
-  Developer(
-    id="rouquett",
-    name="Nicolas F. Rouquette",
-    email="nicolas.f.rouquette@jpl.nasa.gov",
-    url=url("https://gateway.jpl.nasa.gov/personal/rouquett/default.aspx")))
-
-import scala.io.Source
-import scala.util.control.Exception._
-
-def docSettings(diagrams:Boolean): Seq[Setting[_]] =
-  Seq(
-    sources in (Compile,doc) <<= (git.gitUncommittedChanges, sources in (Compile,compile)) map {
-      (uncommitted, compileSources) =>
-        if (uncommitted)
-          Seq.empty
-        else
-          compileSources
-    },
-
-    sources in (Test,doc) <<= (git.gitUncommittedChanges, sources in (Test,compile)) map {
-      (uncommitted, testSources) =>
-        if (uncommitted)
-          Seq.empty
-        else
-          testSources
-    },
-
-    scalacOptions in (Compile,doc) ++=
-      (if (diagrams)
-        Seq("-diagrams", "-diagrams-dot-path", "/usr/bin/dot", "-verbose", "-diagrams-debug")
-      else
-        Seq()
-        ) ++
-        Seq(
-          "-doc-title", name.value,
-          "-doc-root-content", baseDirectory.value + "/rootdoc.txt"
-        ),
-    autoAPIMappings := ! git.gitUncommittedChanges.value
-    //    apiMappings <++=
-    //      ( git.gitUncommittedChanges,
-    //        dependencyClasspath in Compile in doc,
-    //        IMCEKeys.nexusJavadocRepositoryRestAPIURL2RepositoryName,
-    //        IMCEKeys.pomRepositoryPathRegex,
-    //        streams ) map { (uncommitted, deps, repoURL2Name, repoPathRegex, s) =>
-    //        if (uncommitted)
-    //          Map[File, URL]()
-    //        else
-    //          (for {
-    //            jar <- deps
-    //            url <- jar.metadata.get(AttributeKey[ModuleID]("moduleId")).flatMap { moduleID =>
-    //              val urls = for {
-    //                (repoURL, repoName) <- repoURL2Name
-    //                (query, match2publishF) = IMCEPlugin.nexusJavadocPOMResolveQueryURLAndPublishURL(
-    //                  repoURL, repoName, moduleID)
-    //                url <- nonFatalCatch[Option[URL]]
-    //                  .withApply { (_: java.lang.Throwable) => None }
-    //                  .apply({
-    //                    val conn = query.openConnection.asInstanceOf[java.net.HttpURLConnection]
-    //                    conn.setRequestMethod("GET")
-    //                    conn.setDoOutput(true)
-    //                    repoPathRegex
-    //                      .findFirstMatchIn(Source.fromInputStream(conn.getInputStream).getLines.mkString)
-    //                      .map { m =>
-    //                        val javadocURL = match2publishF(m)
-    //                        s.log.info(s"Javadoc for: $moduleID")
-    //                        s.log.info(s"= mapped to: $javadocURL")
-    //                        javadocURL
-    //                      }
-    //                  })
-    //              } yield url
-    //              urls.headOption
-    //            }
-    //          } yield jar.data -> url).toMap
-    //      }
-  )
-
 resolvers := {
   val previous = resolvers.value
   if (git.gitUncommittedChanges.value)
@@ -122,10 +40,9 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator-model-profile", file
   .enablePlugins(IMCEReleasePlugin)
   .settings(dynamicScriptsResourceSettings(Some("gov.nasa.jpl.imce.profileGenerator.model.profile")))
   .settings(IMCEPlugin.strictScalacFatalWarningsSettings)
-  //.settings(docSettings(diagrams=true))
   .settings(IMCEReleasePlugin.packageReleaseProcessSettings)
   .settings(
-    IMCEKeys.licenseYearOrRange := "2014-2016",
+    IMCEKeys.licenseYearOrRange := "2016",
     IMCEKeys.organizationInfo := IMCEPlugin.Organizations.oti,
     IMCEKeys.targetJDK := IMCEKeys.jdk18.value,
 
@@ -171,18 +88,15 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator-model-profile", file
 
     unmanagedClasspath in Compile <++= unmanagedJars in Compile,
 
+    resolvers += Resolver.bintrayRepo("jpl-imce", "gov.nasa.jpl.imce"),
+    resolvers += Resolver.bintrayRepo("tiwg", "org.omg.tiwg"),
+
     libraryDependencies +=
-      "gov.nasa.jpl.imce.thirdParty" %% "other-scala-libraries" % Versions_other_scala_libraries.version artifacts
-        Artifact("other-scala-libraries", "zip", "zip", Some("resource"), Seq(), None, Map()),
-    extractArchives := {},
+      "gov.nasa.jpl.imce" %% "imce.third_party.other_scala_libraries"
+        % Versions_other_scala_libraries.version artifacts
+        Artifact("imce.third_party.other_scala_libraries", "zip", "zip", Some("resource"), Seq(), None, Map()),
 
-    IMCEKeys.nexusJavadocRepositoryRestAPIURL2RepositoryName := Map(
-      "https://oss.sonatype.org/service/local" -> "releases",
-      "https://cae-nexuspro.jpl.nasa.gov/nexus/service/local" -> "JPL",
-      "https://cae-nexuspro.jpl.nasa.gov/nexus/content/groups/jpl.beta.group" -> "JPL Beta Group",
-      "https://cae-nexuspro.jpl.nasa.gov/nexus/content/groups/jpl.public.group" -> "JPL Public Group"),
-    IMCEKeys.pomRepositoryPathRegex := """\<repositoryPath\>\s*([^\"]*)\s*\<\/repositoryPath\>""".r
-
+    extractArchives := {}
   )
 
 def dynamicScriptsResourceSettings(dynamicScriptsProjectName: Option[String] = None): Seq[Setting[_]] = {
