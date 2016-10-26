@@ -38,6 +38,9 @@
  */
 package gov.nasa.jpl.imce.profileGenerator.transformation;
 
+import java.lang.Boolean;
+import java.lang.String;
+
 public class Configuration {
 
 	/** Default input file. */

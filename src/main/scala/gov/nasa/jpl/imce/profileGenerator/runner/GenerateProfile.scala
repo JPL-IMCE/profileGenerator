@@ -46,7 +46,6 @@ import java.io.{File, FileOutputStream}
 import java.nio.file.{Files, Paths}
 
 import com.nomagic.magicdraw.core.Project
-import com.nomagic.magicdraw.core.Application
 import gov.nasa.jpl.dynamicScripts.DynamicScriptsTypes.MainToolbarMenuAction
 import gov.nasa.jpl.dynamicScripts.magicdraw.validation.MagicDrawValidationDataResults
 import gov.nasa.jpl.imce.profileGenerator.io.{BundleDigestReader, JSONBundleDigestReader, MDUMLProfileWriter}
@@ -54,8 +53,9 @@ import gov.nasa.jpl.imce.profileGenerator.model.bundle.BundleDigest
 import gov.nasa.jpl.imce.profileGenerator.model.profile.Package
 import gov.nasa.jpl.imce.profileGenerator.transformation.{Bundle2ProfileMappings, Configuration}
 
-import scala.{Option}
+import scala.{Array,Option}
 import scala.util.Try
+import scala.Predef.refArrayOps
 
 object GenerateProfile {
 

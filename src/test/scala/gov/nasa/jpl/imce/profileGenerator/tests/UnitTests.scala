@@ -42,18 +42,13 @@ package gov.nasa.jpl.imce.profileGenerator.tests
   * Created by sherzig on 7/18/16.
   */
 import java.awt.event.ActionEvent
-import java.io.{File, FileOutputStream}
-import java.nio.file.{Files, Paths}
+import java.nio.file.Files
 
 import com.nomagic.magicdraw.core.Project
 import gov.nasa.jpl.dynamicScripts.DynamicScriptsTypes.MainToolbarMenuAction
 import gov.nasa.jpl.dynamicScripts.magicdraw.utils.MDUML
 import gov.nasa.jpl.dynamicScripts.magicdraw.validation.MagicDrawValidationDataResults
-import gov.nasa.jpl.imce.profileGenerator.io.{BundleDigestReader, JSONBundleDigestReader, MDUMLProfileWriter}
-import gov.nasa.jpl.imce.profileGenerator.model.bundle.BundleDigest
-import gov.nasa.jpl.imce.profileGenerator.model.profile.Package
 import gov.nasa.jpl.imce.profileGenerator.runner.GenerateProfile
-import gov.nasa.jpl.imce.profileGenerator.transformation.{Bundle2ProfileMappings, Configuration}
 
 import scala.Option
 import scala.util.Try

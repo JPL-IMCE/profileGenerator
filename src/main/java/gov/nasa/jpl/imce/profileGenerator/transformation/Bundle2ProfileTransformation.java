@@ -49,7 +49,6 @@ import java.util.Arrays;
 import gov.nasa.jpl.imce.profileGenerator.io.BundleDigestReader;
 import gov.nasa.jpl.imce.profileGenerator.io.JSONBundleDigestReader;
 import gov.nasa.jpl.imce.profileGenerator.io.MDUMLProfileWriter;
-import gov.nasa.jpl.imce.profileGenerator.io.YAMLBundleDigestReader;
 import gov.nasa.jpl.imce.profileGenerator.model.bundle.BundleDigest;
 import gov.nasa.jpl.imce.profileGenerator.model.profile.Package;
 

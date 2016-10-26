@@ -65,6 +65,8 @@ import gov.nasa.jpl.imce.profileGenerator.model.bundle.PrimitiveTypeInstance;
 import gov.nasa.jpl.imce.profileGenerator.model.bundle.ReferencedElement;
 import gov.nasa.jpl.imce.profileGenerator.model.bundle.XSDPrimitiveType;
 
+import java.lang.String;
+
 /**
  * 
  * @author Sebastian.J.Herzig@jpl.nasa.gov

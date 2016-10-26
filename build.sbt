@@ -12,19 +12,6 @@ useGpg := true
 
 fork in run := true
 
-lazy val mdInstallDirectory = SettingKey[File]("md-install-directory", "MagicDraw Installation Directory")
-
-mdInstallDirectory in Global :=
-  baseDirectory.value / "target" / "md.package"
-
-resolvers := {
-  val previous = resolvers.value
-  if (git.gitUncommittedChanges.value)
-    Seq[Resolver](Resolver.mavenLocal) ++ previous
-  else
-    previous
-}
-
 resolvers += 
 "Artifactory" at "https://cae-artifactory.jpl.nasa.gov/artifactory/ext-release-local/"
 
@@ -46,7 +33,6 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator", file("."))
   .settings(dynamicScriptsResourceSettings("gov.nasa.jpl.imce.profileGenerator"))
   .settings(IMCEPlugin.strictScalacFatalWarningsSettings)
   .settings(IMCEReleasePlugin.packageReleaseProcessSettings)
-  .settings(addArtifact(Artifact("imce_md18_0_sp6_profiles_libraries_resource", "zip", "zip"), artifactZipFile).settings: _*)
   .dependsOnSourceProjectOrLibraryArtifacts(
     "gov-nasa-jpl-imce-profileGenerator-model-bundle",
     "gov.nasa.jpl.imce.profileGenerator.model.bundle",
@@ -68,25 +54,40 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator", file("."))
     )
   )
   .dependsOnSourceProjectOrLibraryArtifacts(
-    "oti-uml-magicdraw-adapter",
-    "org.omg.oti.uml.magicdraw.adapter",
+    "imce-magicdraw-dynamicscripts-batch",
+    "imce.magicdraw.dynamicscripts.batch",
     Seq(
-      "org.omg.tiwg" %% "org.omg.oti.uml.magicdraw.adapter"
-        % Versions_oti_uml_magicdraw_adapter.version % "compile"
+      "org.omg.tiwg" %% "imce.magicdraw.dynamicscripts.batch"
+        % Versions_imce_magicdraw_dynamicScripts_batch.version artifacts
+        Artifact("imce.magicdraw.dynamicscripts.batch", "zip", "zip", Some("resource"), Seq(), None, Map())
+    )
+  )
+  .dependsOnSourceProjectOrLibraryArtifacts(
+    "imce-magicdraw-dynamicscripts-batch",
+    "imce.magicdraw.dynamicscripts.batch",
+    Seq(
+      "org.omg.tiwg" %% "imce.magicdraw.dynamicscripts.batch"
+      % Versions_imce_magicdraw_dynamicScripts_batch.version
+      % "test"
+      classifier "tests"
+      artifacts
+        Artifact("imce.magicdraw.dynamicscripts.batch", "zip", "zip", Some("resource"), Seq(), None, Map())
+    )
+  )
+  .dependsOnSourceProjectOrLibraryArtifacts(
+    "projectUsageIntegrityChecker",
+    "gov.nasa.jpl.magicdraw.projectUsageIntegrityChecker",
+    Seq(
+      "gov.nasa.jpl.imce" % "gov.nasa.jpl.magicdraw.projectUsageIntegrityChecker"
+        % Versions_puic.version % "compile"
         withSources() withJavadoc() artifacts
-        Artifact("org.omg.oti.uml.magicdraw.adapter", "zip", "zip", Some("resource"), Seq(), None, Map())
+        Artifact("gov.nasa.jpl.magicdraw.projectUsageIntegrityChecker", "zip", "zip", Some("resource"), Seq(), None, Map())
     )
   )
   .settings(
     IMCEKeys.licenseYearOrRange := "2016",
     IMCEKeys.organizationInfo := IMCEPlugin.Organizations.omf,
     IMCEKeys.targetJDK := IMCEKeys.jdk18.value,
-    git.baseVersion := Versions.version,
-
-    organization := "gov.nasa.jpl.imce.magicdraw.resources",
-    name := "imce_md18_0_sp6_profiles_libraries_resource",
-    organizationHomepage :=
-      Some(url("https://github.jpl.nasa.gov/imce/gov.nasa.jpl.imce.team")),
 
     buildInfoPackage := "gov.nasa.jpl.imce.profileGenerator",
     buildInfoKeys ++= Seq[BuildInfoKey](BuildInfoKey.action("buildDateUTC") { buildUTCDate.value }),
@@ -99,155 +100,6 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator", file("."))
     },
 
     libraryDependencies += "gov.nasa.jpl.cae.magicdraw.packages" % "cae_md18_0_sp6_mdk" % "2.4.3",
-
-    mappings in (Compile, packageSrc) ++= {
-      import Path.{flat, relativeTo}
-      val base = (sourceManaged in Compile).value
-      val srcs = (managedSources in Compile).value
-      srcs x (relativeTo(base) | flat)
-    },
-
-    // disable using the Scala version in output paths and artifacts
-    crossPaths := false,
-
-    artifactZipFile := {
-      baseDirectory.value / "target" / s"imce_md18_0_sp6_profiles_libraries-${version.value}-resource.zip"
-    },
-
-    addArtifact(Artifact("imce_md18_0_sp6_profiles_libraries_resource", "zip", "zip", Some("resource"), Seq(), None, Map()),
-      artifactZipFile),
-
-    sources in doc in Compile := List(),
-
-    publish <<= publish dependsOn zipInstall,
-    PgpKeys.publishSigned <<= PgpKeys.publishSigned dependsOn zipInstall,
-
-    publishLocal <<= publishLocal dependsOn zipInstall,
-    PgpKeys.publishLocalSigned <<= PgpKeys.publishLocalSigned dependsOn zipInstall,
-
-    libraryDependencies += "org.jgrapht" % "jgrapht-ext" % "0.9.0",
-
-    // TODO Needs modification:
-    //   1. Currently, output expected in products / imce.profiles_libraries directory
-    //   2. XML descriptor needs to be generated
-    zipInstall <<=
-      (baseDirectory, update, streams,
-        mdInstallDirectory in ThisBuild,
-        artifactZipFile,
-        makePom, buildUTCDate
-        ) map {
-        (base, up, s, mdInstallDir, zip, pom, d) =>
-
-          import com.typesafe.sbt.packager.universal._
-
-          val root = base / "target" / "imce_md18_0_sp6_profiles_libraries"
-          s.log.info(s"\n*** top: $root")
-          s.log.info(s"\n*** zip: ${zip}")
-          s.log.info(s"\n*** zip: ${zip.getCanonicalFile} (canonical)")
-
-          // This is likely where the profiles are stored that are produced by the profile generator
-          // Looks like this expects: modelLibraries/... and profiles/... to be populated already
-          IO.copyDirectory(
-            base / "products" / "imce.profiles_libraries",
-            root, overwrite=true, preserveLastModified=true)
-
-          // Create other necessary plugin configs
-          val resourceManager = root / "data" / "resourcemanager"
-          IO.createDirectory(resourceManager)
-          val resourceDescriptorFile = resourceManager / "MDR_IMCE_ProfilesLibraries_74997_descriptor.xml"
-
-          // TODO This needs to be generated... or does it?
-          val resourceDescriptorInfo =
-            <resourceDescriptor critical="false" date={d}
-                                description="IMCE Profiles &amp; Libraries"
-                                group="IMCE Resource"
-                                homePage="https://github.jpl.nasa.gov/imce/imce.qvto.profileGenerator"
-                                id="74997"
-                                mdVersionMax="higher"
-                                mdVersionMin="18.0"
-                                name="IMCEProfiles"
-                                product="IMCE Profiles And Libraries"
-                                restartMagicdraw="false" type="Profile">
-              <version human={Versions.version} internal={Versions.version} resource={Versions.version + "0"}/>
-              <provider email="sebastian.j.herzig@jpl.nasa.gov"
-                        homePage="https://github.jpl.nasa.gov/imce"
-                        name="IMCE"/>
-              <edition>Reader</edition>
-              <edition>Community</edition>
-              <edition>Standard</edition>
-              <edition>Professional Java</edition>
-              <edition>Professional C++</edition>
-              <edition>Professional C#</edition>
-              <edition>Professional ArcStyler</edition>
-              <edition>Professional EFFS ArcStyler</edition>
-              <edition>OptimalJ</edition>
-              <edition>Professional</edition>
-              <edition>Architect</edition>
-              <edition>Enterprise</edition>
-              <installation>
-                <file from="modelLibraries/IMCE/IMCE.DC.mdzip"
-                      to="modelLibraries/IMCE/IMCE.DC.mdzip"/>
-                <file from="modelLibraries/IMCE/IMCE.DI.mdzip"
-                      to="modelLibraries/IMCE/IMCE.DI.mdzip"/>
-                <file from="modelLibraries/IMCE/IMCE.IEC80000-13 Information Science and Technology.mdzip"
-                      to="modelLibraries/IMCE/IMCE.IEC80000-13 Information Science and Technology.mdzip"/>
-                <file from="modelLibraries/IMCE/IMCE.IEC80000-6 Electromagnetism.mdzip"
-                      to="modelLibraries/IMCE/IMCE.IEC80000-6 Electromagnetism.mdzip"/>
-                <file from="modelLibraries/IMCE/IMCE.ISO-80000-All.mdzip"
-                      to="modelLibraries/IMCE/IMCE.ISO-80000-All.mdzip"/>
-                <file from="modelLibraries/IMCE/IMCE.ISO80000-1 General.mdzip"
-                      to="modelLibraries/IMCE/IMCE.ISO80000-1 General.mdzip"/>
-                <file from="modelLibraries/IMCE/IMCE.ISO80000-10 Atomic and Nuclear Physics.mdzip"
-                      to="modelLibraries/IMCE/IMCE.ISO80000-10 Atomic and Nuclear Physics.mdzip"/>
-                <file from="modelLibraries/IMCE/IMCE.ISO80000-3 Space and Time.mdzip"
-                      to="modelLibraries/IMCE/IMCE.ISO80000-3 Space and Time.mdzip"/>
-                <file from="modelLibraries/IMCE/IMCE.ISO80000-4 Mechanics.mdzip"
-                      to="modelLibraries/IMCE/IMCE.ISO80000-4 Mechanics.mdzip"/>
-                <file from="modelLibraries/IMCE/IMCE.ISO80000-5 Thermodynamics.mdzip"
-                      to="modelLibraries/IMCE/IMCE.ISO80000-5 Thermodynamics.mdzip"/>
-                <file from="modelLibraries/IMCE/IMCE.ISO80000-7 Light.mdzip"
-                      to="modelLibraries/IMCE/IMCE.ISO80000-7 Light.mdzip"/>
-                <file from="modelLibraries/IMCE/IMCE.ISO80000-9 Physical Chemistry and Molecular Physics.mdzip"
-                      to="modelLibraries/IMCE/IMCE.ISO80000-9 Physical Chemistry and Molecular Physics.mdzip"/>
-                <file from="modelLibraries/IMCE/IMCE.SysMLDI.mdzip"
-                      to="modelLibraries/IMCE/IMCE.SysMLDI.mdzip"/>
-                <file from="modelLibraries/IMCE/IMCE.UML2.5.mdzip"
-                      to="modelLibraries/IMCE/IMCE.UML2.5.mdzip"/>
-                <file from="modelLibraries/IMCE/IMCE.UMLDI.mdzip"
-                      to="modelLibraries/IMCE/IMCE.UMLDI.mdzip"/>
-                <file from="modelLibraries/IMM/XMLSchema Metamodel.mdzip"
-                      to="modelLibraries/IMM/XMLSchema Metamodel.mdzip"/>
-                <file from="profiles/IMCE/IMCE.BlockSpecificTypeModelingAndAnalysis.mdzip"
-                      to="profiles/IMCE/IMCE.BlockSpecificTypeModelingAndAnalysis.mdzip"/>
-                <file from="profiles/IMCE/IMCE.owl2-mof2.mdzip"
-                      to="profiles/IMCE/IMCE.owl2-mof2.mdzip"/>
-                <file from="profiles/IMCE/QVTOValidation.mdzip"
-                      to="profiles/IMCE/QVTOValidation.mdzip"/>
-                <file from="profiles/IMCEOntologyBundles/imce.jpl.nasa.gov/foundation/project/project-bundle.mdzip"
-                      to="profiles/IMCEOntologyBundles/imce.jpl.nasa.gov/foundation/project/project-bundle.mdzip"/>
-                <file from="profiles/IMCEOntologyBundles/imce.jpl.nasa.gov/www.omg.org/spec/SysML/20140311/Metrology-bundle.mdzip"
-                      to="profiles/IMCEOntologyBundles/imce.jpl.nasa.gov/www.omg.org/spec/SysML/20140311/Metrology-bundle.mdzip"/>
-              </installation>
-            </resourceDescriptor>
-
-
-          xml.XML.save(
-            filename=resourceDescriptorFile.getAbsolutePath,
-            node=resourceDescriptorInfo,
-            enc="UTF-8")
-
-          val fileMappings = (root.*** --- root) pair relativeTo(root)
-          ZipHelper.zipNIO(fileMappings, zip.getCanonicalFile)
-
-          s.log.info(s"\n*** Created the zip: $zip")
-          zip
-      },
-
-    scalaSource in Compile :=
-      baseDirectory.value / "src" / "main" / "scala",
-
-    unmanagedSourceDirectories in Compile +=
-      baseDirectory.value / "src-gen",
 
     resourceDirectory in Compile :=
       baseDirectory.value / "resources",
@@ -272,72 +124,81 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator", file("."))
     resolvers += Resolver.bintrayRepo("jpl-imce", "gov.nasa.jpl.imce"),
     resolvers += Resolver.bintrayRepo("tiwg", "org.omg.tiwg"),
 
-    extractArchives <<= (baseDirectory, update, streams) map {
-      (base, up, s) =>
+    extractArchives := {
+      val base = baseDirectory.value
+      val up = update.value
+      val s = streams.value
+      val sbv = scalaBinaryVersion.value
 
-        val mdInstallDir = base / "target" / "md.package"
-        if (!mdInstallDir.exists) {
+      val mdInstallDir = base / "target" / "md.package"
+      if (!mdInstallDir.exists) {
 
-          IO.createDirectory(mdInstallDir)
+        val libDir = mdInstallDir / "lib"
 
-          val pfilter: DependencyFilter = new DependencyFilter {
-            def apply(c: String, m: ModuleID, a: Artifact): Boolean =
-              (a.`type` == "zip" || a.`type` == "resource") &&
-                a.extension == "zip" &&
-                (m.organization == "gov.nasa.jpl.cae.magicdraw.packages" ||
-                  m.organization == "gov.nasa.jpl.imce.magicdraw.plugins")
-          }
-          val ps: Seq[File] = up.matching(pfilter)
-          ps.foreach { zip =>
-            val files = IO.unzip(zip, mdInstallDir)
-            s.log.info(
-              s"=> created md.install.dir=$mdInstallDir with ${files.size} " +
-                s"files extracted from zip: ${zip.getName}")
-          }
+        IO.createDirectory(mdInstallDir)
 
-          // Also copy IMCE libraries & profiles (this bootstraps some manually created dependencies)
-          val imceLibsProfiles: File = base / "resources" / "imce_md18_0_sp6_profiles_libraries_resource_2.11-1.11.zip"
-          IO.unzip(imceLibsProfiles, mdInstallDir)
+        val pfilter: DependencyFilter = new DependencyFilter {
+          def apply(c: String, m: ModuleID, a: Artifact): Boolean =
+            (a.`type` == "zip" || a.`type` == "resource") &&
+              a.extension == "zip" &&
+              m.organization.startsWith("gov.nasa.jpl") &&
+              (m.name.startsWith("cae_md") ||
+                m.name.startsWith("gov.nasa.jpl.magicdraw.projectUsageIntegrityChecker") ||
+                m.name.startsWith("imce.dynamic_scripts.magicdraw.plugin"))
+        }
+        val ps: Seq[File] = up.matching(pfilter)
+        ps.foreach { zip =>
+          val files = IO.unzip(zip, mdInstallDir)
           s.log.info(
-            s"=> installed IMCE libraries and profiles into $mdInstallDir")
+            s"=> created md.install.dir=$mdInstallDir with ${files.size} " +
+              s"files extracted from zip: ${zip.getName}")
+        }
 
-          //          val mdDynamicScriptsDir = mdInstallDir / "dynamicScripts"
-          //          IO.createDirectory(mdDynamicScriptsDir)
-          //
-          //          val zfilter: DependencyFilter = new DependencyFilter {
-          //            def apply(c: String, m: ModuleID, a: Artifact): Boolean =
-          //              (a.`type` == "zip" || a.`type` == "resource") &&
-          //                a.extension == "zip" &&
-          //                m.organization == "org.omg.tiwg"
-          //          }
-          //          val zs: Seq[File] = up.matching(zfilter)
-          //          zs.foreach { zip =>
-          //            val files = IO.unzip(zip, mdDynamicScriptsDir)
-          //            s.log.info(
-          //              s"=> extracted ${files.size} DynamicScripts files from zip: ${zip.getName}")
-          //          }
+        val mdDynamicScriptsDir = mdInstallDir / "dynamicScripts"
+        IO.createDirectory(mdDynamicScriptsDir)
 
-        } else
+        val zfilter: DependencyFilter = new DependencyFilter {
+          def apply(c: String, m: ModuleID, a: Artifact): Boolean =
+            (a.`type` == "zip" || a.`type` == "resource") &&
+              a.extension == "zip" &&
+              (m.organization.startsWith("gov.nasa.jpl") || m.organization.startsWith("org.omg.tiwg")) &&
+              !(m.name.startsWith("cae_md") ||
+                m.name.startsWith("gov.nasa.jpl.magicdraw.projectUsageIntegrityChecker") ||
+                m.name.startsWith("imce.dynamic_scripts.magicdraw.plugin") ||
+                m.name.startsWith("imce.third_party") ||
+                m.name.startsWith("com.nomagic.magicdraw.package"))
+        }
+        val zs: Seq[File] = up.matching(zfilter)
+        zs.foreach { zip =>
+          val files = IO.unzip(zip, mdDynamicScriptsDir)
           s.log.info(
-            s"=> use existing md.install.dir=$mdInstallDir")
+            s"=> extracted ${files.size} DynamicScripts files from zip: ${zip.getName}")
+        }
+
+      } else
+        s.log.info(
+          s"=> use existing md.install.dir=$mdInstallDir")
     },
 
-    unmanagedJars in Compile <++= (baseDirectory, update, streams, extractArchives) map {
-      (base, up, s, _) =>
+    unmanagedJars in Compile := {
+      val prev = (unmanagedJars in Compile).value
+      val base = baseDirectory.value
+      val s = streams.value
+      val _ = extractArchives.value
 
-        val mdInstallDir = base / "target" / "md.package"
+      val mdInstallDir = base / "target" / "md.package"
 
-        val libJars = ((mdInstallDir / "lib") ** "*.jar").get
-        s.log.info(s"jar libraries: ${libJars.size}")
+      val depJars = ((base / "lib") ** "*.jar").get.map(Attributed.blank)
 
-        //        val dsJars = ((mdInstallDir / "dynamicScripts") * "*" / "lib" ** "*.jar").get
-        //        s.log.info(s"jar dynamic script: ${dsJars.size}")
-        //
-        //        val mdJars = (libJars ++ dsJars).map { jar => Attributed.blank(jar) }
-        val mdJars = libJars.map { jar => Attributed.blank(jar) }
+      val libJars = (mdInstallDir ** "*.jar").get.map(Attributed.blank)
+      val allJars = libJars ++ depJars
 
-        mdJars
+      s.log.info(s"=> Adding ${allJars.size} unmanaged jars")
+
+      allJars
     },
+
+    unmanagedJars in Test := (unmanagedJars in Compile).value,
 
     compile <<= (compile in Compile) dependsOn extractArchives
 
