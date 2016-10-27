@@ -1,0 +1,11 @@
+.cache
+.ensime*
+.idea
+*.iml
+*.bak
+*.log
+*links.json
+local.*
+project/project
+project/target
+target
