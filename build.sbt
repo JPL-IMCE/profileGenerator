@@ -223,27 +223,36 @@ def dynamicScriptsResourceSettings(projectName: String): Seq[Setting[_]] = {
       normalizedName.value + "_" + scalaBinaryVersion.value + "-" + version.value + "-resource",
 
     // contents of the '*-resource.zip' to be produced by 'universal:packageBin'
-    mappings in Universal <++= (
-      baseDirectory,
-      packageBin in Compile,
-      packageSrc in Compile,
-      packageDoc in Compile,
-      packageBin in Test,
-      packageSrc in Test,
-      packageDoc in Test) map {
-      (dir, bin, src, doc, binT, srcT, docT) =>
-        (dir ** "*.md").pair(rebase(dir, projectName)) ++
-          (dir / "resources" ***).pair(rebase(dir, projectName)) ++
-          addIfExists(bin, projectName + "/lib/" + bin.name) ++
-          addIfExists(binT, projectName + "/lib/" + binT.name) ++
-          addIfExists(src, projectName + "/lib.sources/" + src.name) ++
-          addIfExists(srcT, projectName + "/lib.sources/" + srcT.name) ++
-          addIfExists(doc, projectName + "/lib.javadoc/" + doc.name) ++
-          addIfExists(docT, projectName + "/lib.javadoc/" + docT.name)
+    mappings in Universal in packageBin ++= {
+      val dir = baseDirectory.value
+      val bin = (packageBin in Compile).value
+      val src = (packageSrc in Compile).value
+      val doc = (packageDoc in Compile).value
+      val binT = (packageBin in Test).value
+      val srcT = (packageSrc in Test).value
+      val docT = (packageDoc in Test).value
+
+      (dir * "*.md").pair(rebase(dir, projectName)) ++
+        (dir / "profiles" ** "*.mdzip").pair(rebase(dir, "..")) ++
+        (dir / "modelLibraries" ** "*.mdzip").pair(rebase(dir, "..")) ++
+        (dir / "resources" ***).pair(rebase(dir, projectName)) ++
+        addIfExists(bin, projectName + "/lib/" + bin.name) ++
+        addIfExists(binT, projectName + "/lib/" + binT.name) ++
+        addIfExists(src, projectName + "/lib.sources/" + src.name) ++
+        addIfExists(srcT, projectName + "/lib.sources/" + srcT.name) ++
+        addIfExists(doc, projectName + "/lib.javadoc/" + doc.name) ++
+        addIfExists(docT, projectName + "/lib.javadoc/" + docT.name)
     },
 
-    artifacts <+= (name in Universal) { n => Artifact(n, "zip", "zip", Some("resource"), Seq(), None, Map()) },
-    packagedArtifacts <+= (packageBin in Universal, name in Universal) map { (p, n) =>
+    artifacts += {
+      val n = (name in Universal).value
+      Artifact(n, "zip", "zip", Some("resource"), Seq(), None, Map())
+    },
+
+    packagedArtifacts += {
+      val p = (packageBin in Universal).value
+      val n = (name in Universal).value
+
       Artifact(n, "zip", "zip", Some("resource"), Seq(), None, Map()) -> p
     }
   )
