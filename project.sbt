@@ -15,7 +15,7 @@ organizationHomepage := Some(url(s"https://github.jpl.nasa.gov/imce/${organizati
 
 homepage := Some(url(s"https://jpl-imce.github.io/${moduleName.value}"))
 
-git.remoteRepo := s"git@github.jpl.nasa.gov/imce/${moduleName.value}.git"
+git.remoteRepo := s"git@github.jpl.nasa.gov:imce/${moduleName.value}.git"
 
 scmInfo := Some(ScmInfo(
   browseUrl = url(s"https://github.jpl.nasa.gov/imce/${moduleName.value}"),
