@@ -57,6 +57,8 @@ import scala.{Array,Option}
 import scala.util.Try
 import scala.Predef.refArrayOps
 
+import java.lang.System
+
 object GenerateProfile {
 
   /**

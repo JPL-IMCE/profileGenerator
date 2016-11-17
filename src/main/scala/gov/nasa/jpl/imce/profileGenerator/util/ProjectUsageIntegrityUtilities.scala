@@ -131,6 +131,8 @@ class ProjectUsageIntegrityUtilities(project: Project) {
 	def process(checkForRepairs: Boolean, annotations: Set[Annotation], description: String): Boolean = {
 		var chkForRepairs = checkForRepairs
 
+		if (annotations == null) return true
+
 		//log.log(String.format("=> %d annotations from %s", annotations.size(), description));
 		for ((annotation: Annotation) <- annotations.toList) {
 			val actions: List[_ <: NMAction] = annotation.getActions()

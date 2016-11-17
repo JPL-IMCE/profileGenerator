@@ -51,9 +51,13 @@ public class Configuration {
 	public static String outputFile =
 			"dynamicScripts/gov.nasa.jpl.imce.profileGenerator.application/output.mdzip";
 
+	/** Directory to place generated profiles / files into (will be created if non-existent). */
+	public static String outputDir =
+			"dynamicScripts/gov.nasa.jpl.imce.profileGenerator.application/";
+
 	/** Default template to be used for profiles. */
 	public static String template =
-			"dynamicScripts/gov.nasa.jpl.imce.profileGenerator.application/resources/18.0sp5/profile-template.mdzip";
+			"dynamicScripts/gov.nasa.jpl.imce.profileGenerator.application/resources/profile-template.mdzip";
 
 	/** Whether to load MagicDraw's GUI or not if executed in standalone mode. */
 	public static Boolean silent = false;

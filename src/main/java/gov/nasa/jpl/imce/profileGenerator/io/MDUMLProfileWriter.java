@@ -735,7 +735,7 @@ public class MDUMLProfileWriter {
 			if (Configuration.generateValidationCustomizations
 					&& _validationCustomizationsPackage != null) {
 				String exportedMDCustomizationsModuleFilename =
-						"dynamicScripts/gov.nasa.jpl.imce.profileGenerator/" +
+						Configuration.outputDir +
 								((com.nomagic.uml2.ext.magicdraw.mdprofiles.Profile) _profile).getName() + "-mdcustomizations.mdzip";
 				exportAsModuleAndRepair(_validationCustomizationsPackage, exportedMDCustomizationsModuleFilename);
 
@@ -746,7 +746,7 @@ public class MDUMLProfileWriter {
 			if (Configuration.generateValidationOCLValidationSuite
 					&& _validationOCLPackage != null) {
 				String exportedOCLValidationModuleFilename =
-						"dynamicScripts/gov.nasa.jpl.imce.profileGenerator/" +
+						Configuration.outputDir +
 								((com.nomagic.uml2.ext.magicdraw.mdprofiles.Profile) _profile).getName() + "-oclvalidation.mdzip";
 				exportAsModuleAndRepair(_validationOCLPackage, exportedOCLValidationModuleFilename);
 
