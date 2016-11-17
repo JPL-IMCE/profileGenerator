@@ -45,17 +45,17 @@ public class Configuration {
 
 	/** Default input file. */
 	public static String inputFile =
-			"dynamicScripts/gov.nasa.jpl.imce.profileGenerator/test/project-bundle.json";
+			"dynamicScripts/gov.nasa.jpl.imce.profileGenerator.application/project-bundle.json";
 
 	/** Default output file. */
 	public static String outputFile =
-			"dynamicScripts/gov.nasa.jpl.imce.profileGenerator/output.mdzip";
+			"dynamicScripts/gov.nasa.jpl.imce.profileGenerator.application/output.mdzip";
 
 	/** Default template to be used for profiles. */
 	public static String template =
-			"dynamicScripts/gov.nasa.jpl.imce.profileGenerator/resources/18.0sp5/profile-template.mdzip";
+			"dynamicScripts/gov.nasa.jpl.imce.profileGenerator.application/resources/18.0sp5/profile-template.mdzip";
 
-	/** Whether to load MagicDraw's GUI or not. */
+	/** Whether to load MagicDraw's GUI or not if executed in standalone mode. */
 	public static Boolean silent = false;
 
 	/** Whether to generate validation procedures (generally). */

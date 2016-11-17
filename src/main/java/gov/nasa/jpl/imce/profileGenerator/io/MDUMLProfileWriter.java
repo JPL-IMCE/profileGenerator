@@ -42,6 +42,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
+import java.io.File;
+import java.io.IOException;
 
 import com.nomagic.magicdraw.core.Application;
 import com.nomagic.magicdraw.core.MDCounter;
@@ -768,6 +770,19 @@ public class MDUMLProfileWriter {
 	 * @param filename
      */
 	private void exportAsModuleAndRepair(Element pckg, String filename) {
+		// MD fails to write module if the file does not yet exist. This is alleviated by simulating a "touch" command
+		// using the standard Java IO API. Note that any missing directories are created first.
+		try {
+			File f = new File(filename);
+			f.getParentFile().mkdirs();
+			f.createNewFile();
+		}
+		catch (IOException e) {
+			System.out.println("[ERROR] Failed to create output file for module!");
+			System.out.println(e.getMessage());
+			return;
+		}
+
 		PUICUtils validationModulePUICUtils = new PUICUtils();
 
 		// Export module

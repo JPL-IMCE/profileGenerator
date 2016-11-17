@@ -109,19 +109,27 @@ object GenerateProfile {
     * @return
     */
   def produceSingleProfile(inputFile : File) = {
-    Files.copy(Paths.get(Configuration.template), new FileOutputStream(new File(Configuration.outputFile)))
+    if (!inputFile.exists()) {
+      System.out.println("[ERROR] Specified input bundle digest does not exist at " + inputFile.getAbsolutePath)
+    }
+    else if (!(new File(Configuration.template)).exists()) {
+      System.out.println("[ERROR] Specified template file does not exist at " + (new File(Configuration.template)).getAbsolutePath)
+    }
+    else {
+      Files.copy(Paths.get(Configuration.template), new FileOutputStream(new File(Configuration.outputFile)))
 
-    val bundleReader: BundleDigestReader = new JSONBundleDigestReader
-    bundleReader.openBundle(inputFile.getAbsolutePath)
+      val bundleReader: BundleDigestReader = new JSONBundleDigestReader
+      bundleReader.openBundle(inputFile.getAbsolutePath)
 
-    val bundle: BundleDigest = bundleReader.readBundleModel
+      val bundle: BundleDigest = bundleReader.readBundleModel
 
-    val mappings: Bundle2ProfileMappings = new Bundle2ProfileMappings
+      val mappings: Bundle2ProfileMappings = new Bundle2ProfileMappings
 
-    val profilePackage: Package = mappings.bundleToProfile(bundle)
+      val profilePackage: Package = mappings.bundleToProfile(bundle)
 
-    val mdUMLProfileWriter: MDUMLProfileWriter = new MDUMLProfileWriter
-    mdUMLProfileWriter.writeModel(profilePackage)
+      val mdUMLProfileWriter: MDUMLProfileWriter = new MDUMLProfileWriter
+      mdUMLProfileWriter.writeModel(profilePackage)
+    }
 
     null
   }
