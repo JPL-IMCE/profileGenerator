@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/JPL-IMCE/gov.nasa.jpl.imce.profileGenerator.application.svg?branch=master)](https://travis-ci.org/JPL-IMCE/gov.nasa.jpl.imce.profileGenerator.application)
+
 # A MagicDraw DynamicScript application for executing the IMCE profile generator from OMF bundles.
 
 [IMCE Jenkins CI](https://imce-jenkins.jpl.nasa.gov/view/IMCE%20Profiles%20and%20Libraries/job/gov.nasa.jpl.imce.profileGenerator.application/)
