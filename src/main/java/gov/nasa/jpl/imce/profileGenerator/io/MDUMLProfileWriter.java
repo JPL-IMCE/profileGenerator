@@ -70,6 +70,8 @@ import gov.nasa.jpl.imce.profileGenerator.util.PUICUtils;
  * transformation! (or even as a kind of "serialization" of the IMCE profile
  * model to MD)
  *
+ * TODO Need to rewrite this to first write all packages, then data types, etc.
+ *
  * @author Sebastian.J.Herzig@jpl.nasa.gov
  */
 public class MDUMLProfileWriter {
@@ -157,6 +159,12 @@ public class MDUMLProfileWriter {
 			_mappings.put(pkg, mdPackage);
 		}
 
+        for (Package subPkg : pkg.getOwnedPackages())
+            if (subPkg instanceof Profile)
+                writeProfile((Profile) subPkg, mdPackage);
+            else
+                writePackage(subPkg, mdPackage);
+
 		// Contained data type definitions
 		for (DataType d : pkg.getDataTypes())
 			writeDataType(d, mdPackage);
@@ -179,14 +187,8 @@ public class MDUMLProfileWriter {
 
 		// Contained constraint definitions
 		for (Constraint c : pkg.getConstraints()) {
-			writeValidationOCLConstraint(c, mdPackage);
-		}
-
-		for (Package subPkg : pkg.getOwnedPackages())
-			if (subPkg instanceof Profile)
-				writeProfile((Profile) subPkg, mdPackage);
-			else
-				writePackage(subPkg, mdPackage);
+            writeValidationOCLConstraint(c, mdPackage);
+        }
 
 		return mdPackage;
 	}
@@ -423,6 +425,12 @@ public class MDUMLProfileWriter {
 			_mappings.put(profile, mdProfile);
 		}
 
+        for (Package subPkg : profile.getOwnedPackages())
+            if (subPkg instanceof Profile)
+                writeProfile((Profile) subPkg, mdProfile);
+            else
+                writePackage(subPkg, mdProfile);
+
 		for (DataType d : profile.getDataTypes())
 			writeDataType(d, mdProfile);
 		
@@ -443,12 +451,6 @@ public class MDUMLProfileWriter {
 		// Contained constraint definitions (should never happen)
 		for (Constraint c : profile.getConstraints())
 			writeValidationOCLConstraint(c, mdProfile);
-
-		for (Package subPkg : profile.getOwnedPackages())
-			if (subPkg instanceof Profile)
-				writeProfile((Profile) subPkg, mdProfile);
-			else
-				writePackage(subPkg, mdProfile);
 
 		this._profile = mdProfile;
 
@@ -723,7 +725,7 @@ public class MDUMLProfileWriter {
 
 		// Export module
 		String exportedModuleFilename =
-				"dynamicScripts/gov.nasa.jpl.imce.profileGenerator/" +
+                Configuration.outputDir +
 						((com.nomagic.uml2.ext.magicdraw.mdprofiles.Profile) _profile).getName() + ".mdzip";
 		exportAsModuleAndRepair(_profile, exportedModuleFilename);
 

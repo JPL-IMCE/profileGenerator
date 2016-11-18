@@ -116,7 +116,11 @@ public class JSONBundleDigestReader extends BundleDigestReader {
 					(boolean) classDesc.getValue().get("reifiedObjectProperty"),
 					(boolean) classDesc.getValue().get("reifiedStructuredDataProperty"),
 					(boolean) classDesc.getValue().get("structuredDatatype"));
-			
+
+			String doc = (String) getDocumentationStringFor(classDesc.getKey());
+			if (!doc.equals(""))
+				newClass.setDocumentation(doc);
+
 			newClasses.add(newClass);
 			
 			if (!_objectStore.contains(newClass))
@@ -218,7 +222,9 @@ public class JSONBundleDigestReader extends BundleDigestReader {
 					isDerived);
 			
 			// Set documentation
-			op.setDocumentation((String) getDocumentationStringFor(ci.getKey()));
+			String doc = (String) getDocumentationStringFor(ci.getKey());
+			if (!doc.equals(""))
+				op.setDocumentation(doc);
 
 			// Look up source and target
 			NamedElement sourceType = lookupElementByName((String) ci.getValue().get("srctype"));
@@ -311,6 +317,11 @@ public class JSONBundleDigestReader extends BundleDigestReader {
 			
 			if (domain != null && range != null) {
 				DataTypeProperty dtp = new DataTypeProperty(name, domain, range);
+
+				// Set documentation
+				String doc = (String) getDocumentationStringFor(ci.getKey());
+				if (!doc.equals(""))
+					dtp.setDocumentation(doc);
 				
 				if (!_objectStore.contains(dtp))
 					_objectStore.add(dtp);
@@ -384,6 +395,11 @@ public class JSONBundleDigestReader extends BundleDigestReader {
 					}
 					
 					DataType d = new DataType(dataTypeName, values);
+
+					// Set documentation
+					String doc = (String) getDocumentationStringFor(dataTypeDefinition.getKey());
+					if (!doc.equals(""))
+						d.setDocumentation(doc);
 					
 					if (!_objectStore.contains(d))
 						_objectStore.add(d);
@@ -409,8 +425,13 @@ public class JSONBundleDigestReader extends BundleDigestReader {
 	protected String getDocumentationStringFor(String element) {
 		if (_rootObject.get(SECTION_DOCUMENTATION) == null)
 			return "";
-		
-		return (String) ((JSONObject) _rootObject.get(SECTION_DOCUMENTATION)).get(element);
+
+		String doc = (String) ((JSONObject) _rootObject.get(SECTION_DOCUMENTATION)).get(element);
+
+		if (doc == null || doc.equals("null"))
+			doc = "";
+
+		return doc;
 	}
 	
 	/**

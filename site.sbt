@@ -43,9 +43,9 @@ target in preprocess := (target in makeSite).value
 
 ghpages.settings
 
-makeSite <<= makeSite.dependsOn(dumpLicenseReport)
+makeSite := makeSite.dependsOn(dumpLicenseReport).value
 
-siteMappings <<= siteMappings.dependsOn(dumpLicenseReport)
+siteMappings := siteMappings.dependsOn(dumpLicenseReport).value
 
 siteMappings += (licenseReportDir.value / "LicenseReportOfAggregatedSBTPluginsAndLibraries.html") -> "LicenseReportOfAggregatedSBTPluginsAndLibraries.html"
 

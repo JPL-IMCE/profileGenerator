@@ -257,6 +257,9 @@ public class MDUMLModelUtils extends MDModelUtils {
 	 * @return
 	 */
 	public static Comment createDocumentationAnnotation(Element element, String documentation) {
+		if (documentation == null || documentation.equals(""))
+			return null;
+
 		System.out.println("[CREATE::DocumentationAnnotation] " + element.toString());
 
 		Comment c = getElementsFactory().createCommentInstance();

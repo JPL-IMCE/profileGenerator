@@ -119,7 +119,7 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator", file("."))
     // disable publishing the test sources jar
     publishArtifact in(Test, packageSrc) := false,
 
-    unmanagedClasspath in Compile <++= unmanagedJars in Compile,
+    unmanagedClasspath in Compile ++= (unmanagedJars in Compile).value,
 
     resolvers += Resolver.bintrayRepo("jpl-imce", "gov.nasa.jpl.imce"),
     resolvers += Resolver.bintrayRepo("tiwg", "org.omg.tiwg"),
@@ -200,7 +200,7 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator", file("."))
 
     unmanagedJars in Test := (unmanagedJars in Compile).value,
 
-    compile <<= (compile in Compile) dependsOn extractArchives
+    compile in Compile := (compile in Compile).dependsOn(extractArchives).value
 
   )
 
