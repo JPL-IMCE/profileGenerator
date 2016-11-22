@@ -12,6 +12,8 @@ useGpg := true
 
 fork in run := true
 
+updateOptions := updateOptions.value.withCachedResolution(true)
+
 resolvers += 
 "Artifactory" at "https://cae-artifactory.jpl.nasa.gov/artifactory/ext-release-local/"
 
