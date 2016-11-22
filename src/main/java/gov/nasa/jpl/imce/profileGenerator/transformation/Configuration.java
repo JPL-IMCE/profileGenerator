@@ -53,7 +53,7 @@ public class Configuration {
 
 	/** Directory to place generated profiles / files into (will be created if non-existent). */
 	public static String outputDir =
-			"dynamicScripts/gov.nasa.jpl.imce.profileGenerator.application/";
+			"dynamicScripts/gov.nasa.jpl.imce.profileGenerator.application/target/md.plugin/profiles/";
 
 	/** Default template to be used for profiles. */
 	public static String template =

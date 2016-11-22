@@ -712,6 +712,9 @@ public class MDUMLProfileWriter {
 	private void cleanup() {
 		SessionManager.getInstance().closeSession();
 
+		// Set up the output dir
+		Configuration.outputDir += "IMCEOntologyBundles/" + getPathToProfile(_profile);
+
 		PUICUtils mainProjectPUICUtils = new PUICUtils();
 
 		// Mount PUIC profile
@@ -764,6 +767,24 @@ public class MDUMLProfileWriter {
 		if (Configuration.silent) {
 			MDUtils.shutdownMagicDraw();
 		}
+	}
+
+	/**
+	 * Returns a string path from the profile element to a package called
+	 * "IMCE Ontology Bundles".
+	 *
+	 * @param profile
+	 * @return
+	 */
+	private String getPathToProfile(Element profile) {
+		if (profile == null || profile.getOwner() == null)
+			return "";
+
+		if (profile.getOwner() instanceof com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Package
+				&& ((com.nomagic.uml2.ext.magicdraw.classes.mdkernel.Package) profile.getOwner()).getName().equals("IMCE Ontology Bundles"))
+			return "";
+
+		return getPathToProfile(profile.getOwner()) + ((com.nomagic.uml2.ext.magicdraw.classes.mdkernel.NamedElement) profile.getOwner()).getName() + "/";
 	}
 
 	/**
