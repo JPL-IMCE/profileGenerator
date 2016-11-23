@@ -1,3 +1,6 @@
+publishTo := Some(
+  "JPL-IMCE" at
+    s"https://api.bintray.com/content/jpl-imce/${organization.value}/${moduleName.value}/${version.value}")
 
 PgpKeys.useGpg := true
 
