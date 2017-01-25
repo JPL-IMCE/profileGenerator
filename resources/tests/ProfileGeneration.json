@@ -1,0 +1,12 @@
+{
+  "requiredPlugins": ["gov.nasa.jpl.magicdraw.dynamicScripts","gov.nasa.jpl.imce.profileGenerator.application"],
+  "dynamicScriptFiles": [
+    "dynamicScripts/gov.nasa.jpl.imce.profileGenerator.application/resources/profileGenerator.dynamicScripts"
+  ],
+  "testScript": {
+    "className":"gov.nasa.jpl.imce.profileGenerator.runner.GenerateProfile",
+    "methodName":"generateAllProfiles",
+    "type":"InvokeToolbarMenu"},
+
+  "type": "SimpleMagicDrawTestSpec"
+}
