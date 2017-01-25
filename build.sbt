@@ -136,102 +136,6 @@ lazy val core =
       mdJVMFlags := Seq("-Xmx8G"), //
       // for debugging: Seq("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005"),
 
-      extractArchives := {
-        val base = baseDirectory.value
-        val up = update.value
-        val s = streams.value
-        val showDownloadProgress = true // does not compile: logLevel.value <= Level.Debug
-
-        val mdInstallDir = (mdInstallDirectory in ThisBuild).value
-        if (!mdInstallDir.exists) {
-
-          IO.createDirectory(mdInstallDir)
-
-          MagicDrawDownloader.fetchMagicDraw(
-            s.log, showDownloadProgress,
-            up,
-            credentials.value,
-            mdInstallDir, base / "target" / "no_install.zip"
-          )
-
-          val pfilter: DependencyFilter = new DependencyFilter {
-            def apply(c: String, m: ModuleID, a: Artifact): Boolean =
-              (a.`type` == "zip" || a.`type` == "resource") &&
-                a.extension == "zip" &&
-                (m.organization.startsWith("gov.nasa.jpl") || m.organization.startsWith("com.nomagic")) &&
-                (m.name.startsWith("cae_md") ||
-                  m.name.startsWith("gov.nasa.jpl.magicdraw.projectUsageIntegrityChecker") ||
-                  m.name.startsWith("imce.dynamic_scripts.magicdraw.plugin") ||
-                  m.name.startsWith("com.nomagic.magicdraw.package"))
-          }
-          val ps: Seq[File] = up.matching(pfilter)
-          ps.foreach { zip =>
-            // Use unzipURL to download & extract
-            val files = IO.unzip(zip, mdInstallDir)
-            s.log.info(
-              s"=> created md.install.dir=$mdInstallDir with ${files.size} " +
-                s"files extracted from zip: ${zip.getName}")
-          }
-
-          val mdDynamicScriptsDir = mdInstallDir / "dynamicScripts"
-          IO.createDirectory(mdDynamicScriptsDir)
-
-          val zfilter: DependencyFilter = new DependencyFilter {
-            def apply(c: String, m: ModuleID, a: Artifact): Boolean =
-              (a.`type` == "zip" || a.`type` == "resource") &&
-                a.extension == "zip" &&
-                (m.organization.startsWith("gov.nasa.jpl") || m.organization.startsWith("org.omg.tiwg")) &&
-                !(m.name.startsWith("cae_md") ||
-                  m.name.startsWith("gov.nasa.jpl.magicdraw.projectUsageIntegrityChecker") ||
-                  m.name.startsWith("imce.dynamic_scripts.magicdraw.plugin") ||
-                  m.name.startsWith("imce.third_party"))
-          }
-          val zs: Seq[File] = up.matching(zfilter)
-          zs.foreach { zip =>
-            val files = IO.unzip(zip, mdDynamicScriptsDir)
-            s.log.info(
-              s"=> extracted ${files.size} DynamicScripts files from zip: ${zip.getName}")
-          }
-
-        } else
-          s.log.info(
-            s"=> use existing md.install.dir=$mdInstallDir")
-      },
-
-      unmanagedJars in Compile := {
-        val prev = (unmanagedJars in Compile).value
-        val base = baseDirectory.value
-        val s = streams.value
-        val _ = extractArchives.value
-
-        val mdInstallDir = base / "target" / "md.package"
-
-        val depJars = ((base / "lib") ** "*.jar").get.map(Attributed.blank)
-
-        val libJars = (mdInstallDir ** "*.jar").get.map(Attributed.blank)
-        val allJars = libJars ++ depJars
-
-        s.log.info(s"=> Adding ${allJars.size} unmanaged jars")
-
-        allJars
-      },
-
-      unmanagedJars in Test := (unmanagedJars in Compile).value,
-
-      compile in Compile := (compile in Compile).dependsOn(extractArchives).value,
-
-      resolvers += Resolver.bintrayRepo("jpl-imce", "gov.nasa.jpl.imce"),
-      resolvers += Resolver.bintrayRepo("tiwg", "org.omg.tiwg"),
-
-      compile in Test := {
-        val _ = extractArchives.value
-        (compile in Test).value
-      },
-
-      unmanagedClasspath in Test += baseDirectory.value / "target" / "extracted" / "gov.nasa.jpl.imce.ontologies",
-      // for local development, use this instead:
-      //unmanagedClasspath in Test += baseDirectory.value / ".." / "gov.nasa.jpl.imce.ontologies" / "gov.nasa.jpl.imce.ontologies/"
-
       testsInputsDir := baseDirectory.value / "resources" / "tests",
 
       testsResultDir := baseDirectory.value / "target" / "md.testResults",
@@ -256,9 +160,10 @@ lazy val core =
 
       },
 
+      // Profile generator app with dynamic scripts (needs to be extracted over MD installation)
       libraryDependencies += "gov.nasa.jpl.imce"
         %% "gov.nasa.jpl.imce.profileGenerator.application"
-        % "2.4.22"
+        % "2.4.24"
         artifacts
         Artifact("gov.nasa.jpl.imce.profileGenerator.application", "zip", "zip", "resource"),
 
@@ -417,7 +322,102 @@ lazy val core =
 
           group.copy(runPolicy = Tests.SubProcess(forkOptions))
         }
-      }
+      },
+
+      extractArchives := {
+        val base = baseDirectory.value
+        val up = update.value
+        val s = streams.value
+        val showDownloadProgress = true // does not compile: logLevel.value <= Level.Debug
+
+        val mdInstallDir = (mdInstallDirectory in ThisBuild).value
+        if (!mdInstallDir.exists) {
+
+          IO.createDirectory(mdInstallDir)
+
+          MagicDrawDownloader.fetchMagicDraw(
+            s.log, showDownloadProgress,
+            up,
+            credentials.value,
+            mdInstallDir, base / "target" / "no_install.zip"
+          )
+
+          val pfilter: DependencyFilter = new DependencyFilter {
+            def apply(c: String, m: ModuleID, a: Artifact): Boolean =
+              (a.`type` == "zip" || a.`type` == "resource") &&
+                a.extension == "zip" &&
+                (m.organization.startsWith("gov.nasa.jpl") || m.organization.startsWith("com.nomagic")) &&
+                (m.name.startsWith("cae_md") ||
+                  m.name.startsWith("gov.nasa.jpl.magicdraw.projectUsageIntegrityChecker") ||
+                  m.name.startsWith("imce.dynamic_scripts.magicdraw.plugin") ||
+                  m.name.startsWith("com.nomagic.magicdraw.package"))
+          }
+          val ps: Seq[File] = up.matching(pfilter)
+          ps.foreach { zip =>
+            // Use unzipURL to download & extract
+            val files = IO.unzip(zip, mdInstallDir)
+            s.log.info(
+              s"=> created md.install.dir=$mdInstallDir with ${files.size} " +
+                s"files extracted from zip: ${zip.getName}")
+          }
+
+          val mdDynamicScriptsDir = mdInstallDir / "dynamicScripts"
+          IO.createDirectory(mdDynamicScriptsDir)
+
+          val zfilter: DependencyFilter = new DependencyFilter {
+            def apply(c: String, m: ModuleID, a: Artifact): Boolean =
+              (a.`type` == "zip" || a.`type` == "resource" || true) &&
+                a.extension == "zip" &&
+                (m.organization.startsWith("gov.nasa.jpl") || m.organization.startsWith("org.omg.tiwg")) &&
+                !(m.name.startsWith("cae_md") ||
+                  m.name.startsWith("gov.nasa.jpl.magicdraw.projectUsageIntegrityChecker") ||
+                  m.name.startsWith("imce.dynamic_scripts.magicdraw.plugin") ||
+                  m.name.startsWith("imce.third_party"))
+          }
+          val zs: Seq[File] = up.matching(zfilter)
+          zs.foreach { zip =>
+            val files = IO.unzip(zip, mdDynamicScriptsDir)
+            s.log.info(
+              s"=> extracted ${files.size} DynamicScripts files from zip: ${zip.getName}")
+          }
+        } else
+          s.log.info(
+            s"=> use existing md.install.dir=$mdInstallDir")
+      },
+
+      unmanagedJars in Compile := {
+        val prev = (unmanagedJars in Compile).value
+        val base = baseDirectory.value
+        val s = streams.value
+        val _ = extractArchives.value
+
+        val mdInstallDir = base / "target" / "md.package"
+
+        val depJars = ((base / "lib") ** "*.jar").get.map(Attributed.blank)
+
+        val libJars = (mdInstallDir ** "*.jar").get.map(Attributed.blank)
+        val allJars = libJars ++ depJars
+
+        s.log.info(s"=> Adding ${allJars.size} unmanaged jars")
+
+        allJars
+      },
+
+      unmanagedJars in Test := (unmanagedJars in Compile).value,
+
+      compile in Compile := (compile in Compile).dependsOn(extractArchives).value,
+
+      resolvers += Resolver.bintrayRepo("jpl-imce", "gov.nasa.jpl.imce"),
+      resolvers += Resolver.bintrayRepo("tiwg", "org.omg.tiwg"),
+
+      compile in Test := {
+        val _ = extractArchives.value
+        (compile in Test).value
+      },
+
+      unmanagedClasspath in Test += baseDirectory.value / "target" / "extracted" / "gov.nasa.jpl.imce.ontologies"
+      // for local development, use this instead:
+      //unmanagedClasspath in Test += baseDirectory.value / ".." / "gov.nasa.jpl.imce.ontologies" / "gov.nasa.jpl.imce.ontologies/"
     )
 
 def dynamicScriptsResourceSettings(projectName: String): Seq[Setting[_]] = {
