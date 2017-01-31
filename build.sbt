@@ -85,7 +85,6 @@ lazy val core =
     .settings(
       releaseProcess := Seq(
         IMCEReleasePlugin.clearSentinel,
-        IMCEReleasePlugin.checkUncommittedChanges,
         sbtrelease.ReleaseStateTransformations.checkSnapshotDependencies,
         sbtrelease.ReleaseStateTransformations.inquireVersions,
         IMCEReleasePlugin.extractStep,
@@ -94,7 +93,6 @@ lazy val core =
         sbtrelease.ReleaseStateTransformations.tagRelease,
         sbtrelease.ReleaseStateTransformations.publishArtifacts,
         sbtrelease.ReleaseStateTransformations.pushChanges,
-        sbtrelease.ReleaseStateTransformations.runTest,
         IMCEReleasePlugin.successSentinel
       ),
 
@@ -158,6 +156,15 @@ lazy val core =
           resultsDir.exists && resultsDir.canWrite,
           s"The created results directory should exist and be writeable: $resultsDir")
 
+      },
+
+      libraryDependencies += "com.novocode" % "junit-interface" % "0.11" % "test,compile",
+
+      libraryDependencies ~= {
+        _ map {
+          case m => m.exclude("imce.third_party.other_scala", "scalacheck")
+            .exclude("org.scalacheck", "scalacheck")
+        }
       },
 
       // Profile generator app with dynamic scripts (needs to be extracted over MD installation)
@@ -380,6 +387,15 @@ lazy val core =
             s.log.info(
               s"=> extracted ${files.size} DynamicScripts files from zip: ${zip.getName}")
           }
+
+          val imceSetup = mdInstallDir / "bin" / "magicdraw.imce.setup.sh"
+          if (imceSetup.exists()) {
+            val setup = sbt.Process(command = "/bin/bash", arguments = Seq[String](imceSetup.getAbsolutePath)).!
+            require(0 == setup, s"IMCE MD Setup error! ($setup)")
+            s.log.info(s"*** Executed bin/magicdraw.imce.setup.sh script")
+          } else {
+            s.log.info(s"*** No bin/magicdraw.imce.setup.sh script found!")
+          }
         } else
           s.log.info(
             s"=> use existing md.install.dir=$mdInstallDir")
@@ -393,10 +409,13 @@ lazy val core =
 
         val mdInstallDir = base / "target" / "md.package"
 
+        //val depJars = ((base / "lib") ** "*").filter{f => f.isDirectory && ((f) * "*.jar").get.nonEmpty}.get.map(Attributed.blank)
         val depJars = ((base / "lib") ** "*.jar").get.map(Attributed.blank)
 
+        //val libJars = (mdInstallDir ** "*").filter{f => f.isDirectory && ((f) * "*.jar").get.nonEmpty}.get.map(Attributed.blank)
         val libJars = (mdInstallDir ** "*.jar").get.map(Attributed.blank)
-        val allJars = libJars ++ depJars
+
+        val allJars = libJars ++ depJars ++ prev
 
         s.log.info(s"=> Adding ${allJars.size} unmanaged jars")
 
@@ -404,6 +423,8 @@ lazy val core =
       },
 
       unmanagedJars in Test := (unmanagedJars in Compile).value,
+
+      unmanagedClasspath in Test := (unmanagedJars in Test).value,
 
       compile in Compile := (compile in Compile).dependsOn(extractArchives).value,
 
@@ -415,9 +436,22 @@ lazy val core =
         (compile in Test).value
       },
 
-      unmanagedClasspath in Test += baseDirectory.value / "target" / "extracted" / "gov.nasa.jpl.imce.ontologies"
+      unmanagedClasspath in Compile ++= (unmanagedJars in Compile).value
+
+      //unmanagedClasspath in Test += baseDirectory.value / "target" / "extracted" / "gov.nasa.jpl.imce.ontologies"
       // for local development, use this instead:
       //unmanagedClasspath in Test += baseDirectory.value / ".." / "gov.nasa.jpl.imce.ontologies" / "gov.nasa.jpl.imce.ontologies/"
+    )
+    .dependsOnSourceProjectOrLibraryArtifacts(
+      "imce-magicdraw-dynamicscripts-batch",
+      "imce.magicdraw.dynamicscripts.batch",
+      Seq(
+        "org.omg.tiwg"
+          %% "imce.magicdraw.dynamicscripts.batch"
+          % "3.15.1"
+          artifacts
+          Artifact("imce.magicdraw.dynamicscripts.batch", "zip", "zip", Some("resource"), Seq(), None, Map())
+      )
     )
 
 def dynamicScriptsResourceSettings(projectName: String): Seq[Setting[_]] = {
