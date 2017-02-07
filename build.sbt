@@ -174,6 +174,17 @@ lazy val core =
         artifacts
         Artifact("gov.nasa.jpl.imce.profileGenerator.application", "zip", "zip", "resource"),
 
+      // TODO These are dependencies of the profile generator: (currently a manual dependency?)
+      // https://mvnrepository.com/artifact/com.googlecode.json-simple/json-simple
+      libraryDependencies += "com.googlecode.json-simple" % "json-simple" % "1.1.1",
+
+      libraryDependencies +=
+        "org.omg.tiwg.vendor.nomagic"
+          % "com.nomagic.magicdraw.sysml.plugin"
+          % "18.0-sp6.2"
+          artifacts
+          Artifact("com.nomagic.magicdraw.sysml.plugin", "pom", "pom", None, Seq(), None, Map()),
+
       test in Test := (test in Test).dependsOn(testsResultsSetupTask).value,
 
       parallelExecution in Test := false,
@@ -307,18 +318,22 @@ lazy val core =
             connectInput = cInput,
             outputStrategy = Some(LoggedOutput(logger)),
             runJVMOptions = jOpts ++ Seq(
-              "-classpath", (imcePrefix ++ mdClasspath).mkString(File.pathSeparator),
               "-DLOCALCONFIG=false",
               "-DWINCONFIG=false",
               "-DHOME=" + md_install_dir.getAbsolutePath,
               s"-Ddebug.properties=$testPropertiesFile",
-              "-Ddebug.properties.file=imce.properties"
+              "-Ddebug.properties.file=imce.properties",
+              "-DFL_FORCE_USAGE=true",
+              "-DFL_SERVER_ADDRESS=cae-lic04.jpl.nasa.gov",
+              "-DFL_SERVER_PORT=1101",
+              "-DFL_EDITION=enterprise",
+              "-classpath", (imcePrefix ++ mdClasspath).mkString(File.pathSeparator)
             ) ++ jvmFlags,
             workingDirectory = Some(md_install_dir),
             envVars = env +
               ("debug.dir" -> md_install_dir.getAbsolutePath) +
               ("FL_FORCE_USAGE" -> "true") +
-              ("FL_SERVER_ADDRESS" -> "cae-lic01.jpl.nasa.gov") +
+              ("FL_SERVER_ADDRESS" -> "cae-lic04.jpl.nasa.gov") +
               ("FL_SERVER_PORT" -> "1101") +
               ("FL_EDITION" -> "enterprise") +
               ("DYNAMIC_SCRIPTS_TESTS_DIR" -> tests_dir.getAbsolutePath) +
@@ -347,6 +362,13 @@ lazy val core =
             up,
             credentials.value,
             mdInstallDir, base / "target" / "no_install.zip"
+          )
+
+          MagicDrawDownloader.fetchSysMLPlugin(
+            s.log, showDownloadProgress,
+            up,
+            credentials.value,
+            mdInstallDir, base / "target" / "sysml_plugin.zip"
           )
 
           val pfilter: DependencyFilter = new DependencyFilter {
@@ -413,9 +435,11 @@ lazy val core =
         val depJars = ((base / "lib") ** "*.jar").get.map(Attributed.blank)
 
         //val libJars = (mdInstallDir ** "*").filter{f => f.isDirectory && ((f) * "*.jar").get.nonEmpty}.get.map(Attributed.blank)
-        val libJars = (mdInstallDir ** "*.jar").get.map(Attributed.blank)
+        val mdLibJars = ((mdInstallDir / "lib") ** "*.jar").get.map(Attributed.blank)
+        val mdPluginLibJars = ((mdInstallDir / "plugins") ** "*.jar").get.map(Attributed.blank)
+        val mdDynScLibJars = ((mdInstallDir / "dynamicScripts") ** "*.jar").get.map(Attributed.blank)
 
-        val allJars = libJars ++ depJars ++ prev
+        val allJars = mdLibJars ++ mdPluginLibJars ++ mdDynScLibJars ++ depJars ++ prev
 
         s.log.info(s"=> Adding ${allJars.size} unmanaged jars")
 

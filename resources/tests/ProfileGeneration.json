@@ -1,5 +1,5 @@
 {
-  "requiredPlugins": ["gov.nasa.jpl.magicdraw.dynamicScripts","gov.nasa.jpl.imce.profileGenerator.application"],
+  "requiredPlugins": ["gov.nasa.jpl.magicdraw.dynamicScripts"],
   "dynamicScriptFiles": [
     "dynamicScripts/gov.nasa.jpl.imce.profileGenerator.application/resources/profileGenerator.dynamicScripts"
   ],

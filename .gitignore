@@ -10,3 +10,6 @@ project/project
 project/target
 target
 tree.txt
+*.json
+.DS_Store
+**/*.tmp

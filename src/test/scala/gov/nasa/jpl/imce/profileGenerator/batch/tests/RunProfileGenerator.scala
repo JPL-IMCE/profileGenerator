@@ -38,23 +38,70 @@
  */
 package gov.nasa.jpl.imce.profileGenerator.batch.tests
 
-import java.nio.file.Path
-import junit.framework.Test
+import gov.nasa.jpl.imce.profileGenerator.io.{JSONBundleDigestReader, MDUMLProfileWriter}
+import gov.nasa.jpl.imce.profileGenerator.transformation.{Bundle2ProfileMappings, Configuration}
+import gov.nasa.jpl.imce.profileGenerator.util.MDUtils
+import org.scalatest.{FlatSpec, Matchers}
 
-import gov.nasa.jpl.imce.magicdraw.dynamicscripts.batch._
-import gov.nasa.jpl.imce.magicdraw.dynamicscripts.batch.json.MagicDrawTestSpec
+import java.nio.file.{Files, Paths}
+import java.io.{File, FileOutputStream}
 
-object RunProfileGenerator {
+import scala.language.reflectiveCalls
+import scala.Array
 
-  def suite
-  : Test
-  = ExecuteDynamicScriptAsMagicDrawUnitTest.makeTestSuite(
-    (p: Path, spec: MagicDrawTestSpec) => new RunProfileGenerator(p, spec)
-  )
+class RunProfileGenerator extends FlatSpec with Matchers {
+  def fixture =
+    new {
+      // Test configuration
+      Configuration.silent = java.lang.Boolean.valueOf(true)
+      Configuration.template = "dynamicScripts/gov.nasa.jpl.imce.profileGenerator.application/resources/profile-template.mdzip"
+      Configuration.outputDir = "../profiles/"
+      Configuration.inputFile = "../../project-bundle.json"
+      Configuration.outputFile = "../output.mdzip"
 
+      // Objects
+      val bundleReader = new JSONBundleDigestReader
+      val mappings = new Bundle2ProfileMappings
+      val mdUMLProfileWriter = new MDUMLProfileWriter
+    }
+
+  /**
+   * Main test case, responsible for executing the profile generator
+   */
+  it should "produce profiles" in {
+    val f = fixture
+
+    Files.copy(Paths.get(Configuration.template), new FileOutputStream(new File(Configuration.outputFile)))
+
+    val args : Array[java.lang.String] = Array()
+
+    MDUtils.launchMagicDraw(args)
+
+    //java.lang.Thread.sleep(15000)
+
+    f.bundleReader.openBundle(Configuration.inputFile)
+
+    val bundle = f.bundleReader.readBundleModel
+    val profilePackage = f.mappings.bundleToProfile(bundle)
+
+    Configuration.silent = java.lang.Boolean.valueOf(false)
+    val element = f.mdUMLProfileWriter.writeModel(profilePackage)
+
+    assert(null != element)
+  }
 }
 
-class RunProfileGenerator
-( resultsDir: Path,
-  spec: MagicDrawTestSpec )
-extends ExecuteDynamicScriptAsMagicDrawUnitTest(resultsDir, spec)
+//object RunProfileGenerator {
+//
+//  def suite
+//  : Test
+//  = ExecuteDynamicScriptAsMagicDrawUnitTest.makeTestSuite(
+//    (p: Path, spec: MagicDrawTestSpec) => new RunProfileGenerator(p, spec)
+//  )
+//
+//}
+//
+//class RunProfileGenerator
+//( resultsDir: Path,
+//  spec: MagicDrawTestSpec )
+//extends ExecuteDynamicScriptAsMagicDrawUnitTest(resultsDir, spec)
