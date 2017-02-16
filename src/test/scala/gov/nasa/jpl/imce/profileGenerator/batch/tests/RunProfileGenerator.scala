@@ -53,6 +53,11 @@ class RunProfileGenerator extends FunSuite with BeforeAndAfterAllConfigMap {
   val mappings = new Bundle2ProfileMappings
   val mdUMLProfileWriter = new MDUMLProfileWriter
 
+  /**
+    * Fixture
+    *
+    * @param configMap
+    */
   override def beforeAll(configMap: ConfigMap) = {
     if (configMap.get("-digest").isDefined) {
       Configuration.inputFile = configMap.get("-digest").get.toString
