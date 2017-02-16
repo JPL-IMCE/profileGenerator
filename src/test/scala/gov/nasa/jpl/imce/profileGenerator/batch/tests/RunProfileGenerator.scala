@@ -41,36 +41,41 @@ package gov.nasa.jpl.imce.profileGenerator.batch.tests
 import gov.nasa.jpl.imce.profileGenerator.io.{JSONBundleDigestReader, MDUMLProfileWriter}
 import gov.nasa.jpl.imce.profileGenerator.transformation.{Bundle2ProfileMappings, Configuration}
 import gov.nasa.jpl.imce.profileGenerator.util.MDUtils
-import org.scalatest.{FlatSpec, Matchers}
-
+import org.scalatest.{BeforeAndAfterAllConfigMap, ConfigMap, FunSuite}
 import java.nio.file.{Files, Paths}
 import java.io.{File, FileOutputStream}
 
-import scala.language.reflectiveCalls
-import scala.Array
+import scala.{Array}
 
-class RunProfileGenerator extends FlatSpec with Matchers {
-  def fixture =
-    new {
-      // Test configuration
-      Configuration.silent = java.lang.Boolean.valueOf(true)
-      Configuration.template = "dynamicScripts/gov.nasa.jpl.imce.profileGenerator.application/resources/profile-template.mdzip"
-      Configuration.outputDir = "../profiles/"
-      Configuration.inputFile = "../../project-bundle.json"
-      Configuration.outputFile = "../output.mdzip"
+class RunProfileGenerator extends FunSuite with BeforeAndAfterAllConfigMap {
 
-      // Objects
-      val bundleReader = new JSONBundleDigestReader
-      val mappings = new Bundle2ProfileMappings
-      val mdUMLProfileWriter = new MDUMLProfileWriter
+  val bundleReader = new JSONBundleDigestReader
+  val mappings = new Bundle2ProfileMappings
+  val mdUMLProfileWriter = new MDUMLProfileWriter
+
+  override def beforeAll(configMap: ConfigMap) = {
+    if (configMap.get("-digest").isDefined) {
+      Configuration.inputFile = configMap.get("-digest").get.toString
+      //System.out.println("WEIRD; DIGEST WAS FOUND! " + Configuration.inputFile)
     }
+    else if (configMap.get("digest").isDefined) {
+      Configuration.inputFile = configMap.get("digest").get.toString
+      //System.out.println("DIGEST WAS FOUND! " + Configuration.inputFile)
+    }
+    else
+      Configuration.inputFile = "../../project-bundle.json"
+
+    // Test configuration
+    Configuration.silent = java.lang.Boolean.valueOf(true)
+    Configuration.template = "dynamicScripts/gov.nasa.jpl.imce.profileGenerator.application/resources/profile-template.mdzip"
+    Configuration.outputDir = "../profiles/"
+    Configuration.outputFile = "../output.mdzip"
+  }
 
   /**
    * Main test case, responsible for executing the profile generator
    */
-  it should "produce profiles" in {
-    val f = fixture
-
+  test("produce profile") {
     Files.copy(Paths.get(Configuration.template), new FileOutputStream(new File(Configuration.outputFile)))
 
     val args : Array[java.lang.String] = Array()
@@ -79,13 +84,13 @@ class RunProfileGenerator extends FlatSpec with Matchers {
 
     //java.lang.Thread.sleep(15000)
 
-    f.bundleReader.openBundle(Configuration.inputFile)
+    bundleReader.openBundle(Configuration.inputFile)
 
-    val bundle = f.bundleReader.readBundleModel
-    val profilePackage = f.mappings.bundleToProfile(bundle)
+    val bundle = bundleReader.readBundleModel
+    val profilePackage = mappings.bundleToProfile(bundle)
 
     Configuration.silent = java.lang.Boolean.valueOf(false)
-    val element = f.mdUMLProfileWriter.writeModel(profilePackage)
+    val element = mdUMLProfileWriter.writeModel(profilePackage)
 
     assert(null != element)
   }

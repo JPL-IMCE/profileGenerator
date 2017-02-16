@@ -4,10 +4,14 @@ import scala.io.Source
 
 import spray.json._, DefaultJsonProtocol._
 
+import complete.DefaultParsers._
+
 import scala.language.postfixOps
 import gov.nasa.jpl.imce.sbt._
 import gov.nasa.jpl.imce.sbt.ProjectHelper._
 import java.io.File
+
+//import gov.nasa.jpl.imce.profileGenerator.batch.tests.RunProfileGenerator
 
 updateOptions := updateOptions.value.withCachedResolution(true)
 
@@ -30,6 +34,8 @@ lazy val testsInputsDir = SettingKey[File]("tests-inputs-dir", "Directory to sca
 lazy val testsResultDir = SettingKey[File]("tests-result-dir", "Directory for the tests results to archive as the test resource artifact")
 
 lazy val testsResultsSetupTask = taskKey[Unit]("Create the tests results directory")
+
+lazy val produceProfile = inputKey[Unit]("Produce a MD SysML profile from a given digest")
 
 lazy val mdJVMFlags = SettingKey[Seq[String]]("md-jvm-flags", "Extra JVM flags for running MD (e.g., debugging)")
 
@@ -170,13 +176,16 @@ lazy val core =
       // Profile generator app with dynamic scripts (needs to be extracted over MD installation)
       libraryDependencies += "gov.nasa.jpl.imce"
         %% "gov.nasa.jpl.imce.profileGenerator.application"
-        % "2.4.24"
+        % "2.5.3"
         artifacts
         Artifact("gov.nasa.jpl.imce.profileGenerator.application", "zip", "zip", "resource"),
 
       // TODO These are dependencies of the profile generator: (currently a manual dependency?)
       // https://mvnrepository.com/artifact/com.googlecode.json-simple/json-simple
-      libraryDependencies += "com.googlecode.json-simple" % "json-simple" % "1.1.1",
+      libraryDependencies +=
+        "com.googlecode.json-simple"
+          % "json-simple"
+          % "1.1.1",
 
       libraryDependencies +=
         "org.omg.tiwg.vendor.nomagic"
@@ -185,7 +194,29 @@ lazy val core =
           artifacts
           Artifact("com.nomagic.magicdraw.sysml.plugin", "pom", "pom", None, Seq(), None, Map()),
 
+      libraryDependencies += "gov.nasa.jpl.imce"
+        % "gov.nasa.jpl.imce.metrology.isoiec80000.magicdraw.library"
+        % "18.0.7"
+        artifacts
+        Artifact("gov.nasa.jpl.imce.metrology.isoiec80000.magicdraw.library", "zip", "zip", "resource"),
+
+     /* produceProfile := {
+        // get the result of parsing
+        val args: Seq[String] = spaceDelimited("<arg>").parsed
+
+        args foreach(_ match {
+          case knownString if knownString.startsWith("-digest=") => {
+                val digest = knownString.replace("-digest=", "")
+
+                (new RunProfileGenerator).execute(configMap = Map("digest" -> digest))
+              }
+          case unknownString => None
+        })
+      },*/
+
       test in Test := (test in Test).dependsOn(testsResultsSetupTask).value,
+
+      testOptions in testOnly += Tests.Argument("-digest", "../../project-bundle.json"),
 
       parallelExecution in Test := false,
 
@@ -379,7 +410,8 @@ lazy val core =
                 (m.name.startsWith("cae_md") ||
                   m.name.startsWith("gov.nasa.jpl.magicdraw.projectUsageIntegrityChecker") ||
                   m.name.startsWith("imce.dynamic_scripts.magicdraw.plugin") ||
-                  m.name.startsWith("com.nomagic.magicdraw.package"))
+                  m.name.startsWith("com.nomagic.magicdraw.package") ||
+                  m.name.startsWith("gov.nasa.jpl.imce.metrology.isoiec80000.magicdraw.library"))
           }
           val ps: Seq[File] = up.matching(pfilter)
           ps.foreach { zip =>
@@ -401,7 +433,8 @@ lazy val core =
                 !(m.name.startsWith("cae_md") ||
                   m.name.startsWith("gov.nasa.jpl.magicdraw.projectUsageIntegrityChecker") ||
                   m.name.startsWith("imce.dynamic_scripts.magicdraw.plugin") ||
-                  m.name.startsWith("imce.third_party"))
+                  m.name.startsWith("imce.third_party") ||
+                  m.name.startsWith("gov.nasa.jpl.imce.metrology.isoiec80000.magicdraw.library"))
           }
           val zs: Seq[File] = up.matching(zfilter)
           zs.foreach { zip =>
