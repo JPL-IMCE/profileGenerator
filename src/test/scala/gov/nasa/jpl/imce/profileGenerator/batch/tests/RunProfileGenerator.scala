@@ -70,6 +70,8 @@ class RunProfileGenerator extends FunSuite with BeforeAndAfterAllConfigMap {
     else
       Configuration.inputFile = "../../project-bundle.json"
 
+    info("Generating profile from: " + Configuration.inputFile)
+
     // Test configuration
     Configuration.silent = java.lang.Boolean.valueOf(true)
     Configuration.template = "dynamicScripts/gov.nasa.jpl.imce.profileGenerator.application/resources/profile-template.mdzip"
