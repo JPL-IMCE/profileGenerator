@@ -59,6 +59,8 @@ class RunProfileGenerator extends FunSuite with BeforeAndAfterAllConfigMap {
     * @param configMap
     */
   override def beforeAll(configMap: ConfigMap) = {
+    configMap.foreach(m => info(m._1 + "->" + m._2))
+
     if (configMap.get("-digest").isDefined) {
       Configuration.inputFile = configMap.get("-digest").get.toString
       //System.out.println("WEIRD; DIGEST WAS FOUND! " + Configuration.inputFile)

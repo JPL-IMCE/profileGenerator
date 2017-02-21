@@ -176,7 +176,7 @@ lazy val core =
       // Profile generator app with dynamic scripts (needs to be extracted over MD installation)
       libraryDependencies += "gov.nasa.jpl.imce"
         %% "gov.nasa.jpl.imce.profileGenerator.application"
-        % "2.5.3"
+        % "2.5.4"
         artifacts
         Artifact("gov.nasa.jpl.imce.profileGenerator.application", "zip", "zip", "resource"),
 
