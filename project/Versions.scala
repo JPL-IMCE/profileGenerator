@@ -9,6 +9,6 @@ object Versions {
   // 2.0.0 - Reimplementation of profile generator
 
   // this project
-  val version = "2.4.7"
+  val version = "2.5.0"
 
 }
