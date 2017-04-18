@@ -104,8 +104,6 @@ lazy val core = Project("gov-nasa-jpl-imce-profileGenerator", file("."))
         "artifact.kind" -> "generic.library")
     },
 
-    libraryDependencies += "gov.nasa.jpl.cae.magicdraw.packages" % "cae_md18_0_sp6_mdk" % "2.4.3",
-
     resourceDirectory in Compile :=
       baseDirectory.value / "resources",
 
