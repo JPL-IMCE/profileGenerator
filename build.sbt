@@ -14,8 +14,11 @@ fork in run := true
 
 updateOptions := updateOptions.value.withCachedResolution(true)
 
-resolvers += 
-"Artifactory" at "https://cae-artifactory.jpl.nasa.gov/artifactory/ext-release-local/"
+resolvers +=
+  "Artifactory" at "https://cae-artifactory.jpl.nasa.gov/artifactory/ext-release-local/"
+
+resolvers +=
+  Resolver.bintrayRepo("tiwg", "org.omg.tiwg.vendor.nomagic")
 
 shellPrompt in ThisBuild := { state => Project.extract(state).currentRef.project + "> " }
 
