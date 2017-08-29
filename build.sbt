@@ -473,8 +473,9 @@ lazy val core =
         val mdLibJars = ((mdInstallDir / "lib") ** "*.jar").get.map(Attributed.blank)
         val mdPluginLibJars = ((mdInstallDir / "plugins") ** "*.jar").get.map(Attributed.blank)
         val mdDynScLibJars = ((mdInstallDir / "dynamicScripts") ** "*.jar").get.map(Attributed.blank)
+	val pGLibs = (file("target/profileGenerator") ** "*.jar").get.map(Attributed.blank)
 
-        val allJars = mdLibJars ++ mdPluginLibJars ++ mdDynScLibJars ++ depJars ++ prev
+        val allJars = mdLibJars ++ mdPluginLibJars ++ pGLibs ++ depJars ++ prev
 
         s.log.info(s"=> Adding ${allJars.size} unmanaged jars")
 
