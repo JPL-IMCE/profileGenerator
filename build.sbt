@@ -472,10 +472,12 @@ lazy val core =
         //val libJars = (mdInstallDir ** "*").filter{f => f.isDirectory && ((f) * "*.jar").get.nonEmpty}.get.map(Attributed.blank)
         val mdLibJars = ((mdInstallDir / "lib") ** "*.jar").get.map(Attributed.blank)
         val mdPluginLibJars = ((mdInstallDir / "plugins") ** "*.jar").get.map(Attributed.blank)
-        val mdDynScLibJars = ((mdInstallDir / "dynamicScripts") ** "*.jar").get.map(Attributed.blank)
-	val pGLibs = (file("target/profileGenerator") ** "*.jar").get.map(Attributed.blank)
+        val pGApp = ((mdInstallDir / "dynamicScripts" / "gov.nasa.jpl.imce.profileGenerator.application") ** "*.jar").get.map(Attributed.blank)
+	val pGModelBundle = ((mdInstallDir / "dynamicScripts" / "gov.nasa.jpl.imce.profileGenerator.model.bundle") ** "*.jar").get.map(Attributed.blank)
+	val pGModelProfile = ((mdInstallDir / "dynamicScripts" / "gov.nasa.jpl.imce.profileGenerator.model.profile") ** "*.jar").get.map(Attributed.blank)
+	//val pGLibs = (file("target/profileGenerator") ** "*.jar").get.map(Attributed.blank)
 
-        val allJars = mdLibJars ++ mdPluginLibJars ++ pGLibs ++ depJars ++ prev
+        val allJars = mdLibJars ++ mdPluginLibJars ++ pGApp ++ pGModelBundle ++ pGModelProfile ++ depJars ++ prev
 
         s.log.info(s"=> Adding ${allJars.size} unmanaged jars")
 
