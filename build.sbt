@@ -126,6 +126,8 @@ lazy val core =
 
       publishArtifact in Test := true,
 
+      logLevel in Test := Level.Debug,
+
       unmanagedClasspath in Compile ++= (unmanagedJars in Compile).value,
 
       resolvers += Resolver.bintrayRepo("jpl-imce", "gov.nasa.jpl.imce"),
@@ -260,12 +262,12 @@ lazy val core =
 
         val logger = new FullLogger(xlogger)
 
-        val ds_dir = md_install_dir / "dynamicScripts"
+        //val ds_dir = md_install_dir / "dynamicScripts"
 
-        val files = IO.unzip(pas, ds_dir)
-        s.log.warn(
-          s"=> Installed ${files.size} " +
-            s"files extracted from zip: $pas")
+        //val files = IO.unzip(pas, ds_dir)
+        //s.log.warn(
+        //  s"=> Installed ${files.size} " +
+        //    s"files extracted from zip: $pas")
 
         val mdProperties = new java.util.Properties()
         IO.load(mdProperties, md_install_dir / "bin" / "magicdraw.properties")
