@@ -1,4 +1,15 @@
+.cache
+.ensime*
+.idea
+*.iml
+*.bak
+*.log
+links.json
+project/project
+project/target
+target
 .DS_Store
 **/.DS_Store
-**/target
+local.*
+gh-pages/
 
