@@ -2,7 +2,7 @@
 .ensime*
 .idea
 *.iml
-*.bak
+**/*.bak
 *.log
 links.json
 project/project
@@ -14,3 +14,4 @@ local.*
 gh-pages/
 *~
 *links.json
+**/*.tmp
